@@ -8,6 +8,7 @@
 #include "onnx/defs/schema.h"
 
 #include "./cpu/attnlstm/attn_lstm_schema_defs.h"
+#include "./cpu/range_schema_defs.h"
 
 namespace onnxruntime {
 namespace contrib {
@@ -45,6 +46,7 @@ Sample echo operator.)DOC");
       .SetDoc(R"DOC(ExpandDims echo operator.)DOC");
 
   ONNX_CONTRIB_OPERATOR_SCHEMA_ELSEWHERE(AttnLSTM, RegisterAttnLSTMContribOpSchema);
+  ONNX_CONTRIB_OPERATOR_SCHEMA_ELSEWHERE(Range, RegisterRangeOpSchema);
 
   ONNX_CONTRIB_OPERATOR_SCHEMA(IsNaN)
       .SetDomain(kMSDomain)
@@ -329,6 +331,39 @@ with the exception that numpy default keepdims to False instead of True.)DOC")
           AttributeProto::INT);
 }
 
+//   ONNX_CONTRIB_OPERATOR_SCHEMA(Range)
+//     .SetDomain(kMSDomain)
+//     .SinceVersion(1)
+//     .TypeConstraint(
+//         "T",
+//         {"tensor(float)", "tensor(double)", "tensor(int16)", "tensor(int32)", "tensor(int64)" },
+//         "Constrain input and output types.")
+//     .Input(
+//         0,
+//         "start",
+//         "Tensor(scalar, or dims=[1]). First entry in the range.",
+//         "T")
+//     .Input(
+//         1,
+//         "limit",
+//         "Tensor(scalar, or dims=[1]). Upper limit of sequence, exclusive.",
+//         "T")
+//     .Input(
+//         2,
+//         "delta",
+//         "Tensor(scalar, or dims=[1]). Number that increments start. Defaults to 1.",
+//         "T",
+//         OpSchema::Optional)
+//     .Output(
+//         0,
+//         "Y",
+//         "1-D Tensor of the range.",
+//         "T")
+//     .SetDoc( R"DOC(
+// Creates a sequence of numbers that begins at `start` and extends by increments of `delta`
+// up to but not including `limit`.
+// )DOC");
+
 class ONNX_OPERATOR_TYPED_KERNEL_CLASS_NAME(kCpuExecutionProvider, kMSDomain, 1, float, SampleOp);
 class ONNX_OPERATOR_TYPED_KERNEL_CLASS_NAME(kCpuExecutionProvider, kMSDomain, 1, float, ExpandDims);
 class ONNX_OPERATOR_KERNEL_CLASS_NAME(kCpuExecutionProvider, kMSDomain, 1, AttnLSTM);
@@ -336,6 +371,7 @@ class ONNX_OPERATOR_TYPED_KERNEL_CLASS_NAME(kCpuExecutionProvider, kMSDomain, 1,
 class ONNX_OPERATOR_TYPED_KERNEL_CLASS_NAME(kCpuExecutionProvider, kMSDomain, 1, uint8_t, DequantizeLinear);
 class ONNX_OPERATOR_TYPED_KERNEL_CLASS_NAME(kCpuExecutionProvider, kMSDomain, 1, int8_t, DequantizeLinear);
 class ONNX_OPERATOR_TYPED_KERNEL_CLASS_NAME(kCpuExecutionProvider, kMSDomain, 1, float, QuantizeLinear);
+class ONNX_OPERATOR_KERNEL_CLASS_NAME(kCpuExecutionProvider, kMSDomain, 1, Range);
 
 void RegisterContribKernels(std::function<void(KernelCreateInfo&&)> fn) {
   fn(BuildKernel<ONNX_OPERATOR_TYPED_KERNEL_CLASS_NAME(kCpuExecutionProvider, kMSDomain, 1, float, SampleOp)>());
@@ -348,6 +384,7 @@ void RegisterContribKernels(std::function<void(KernelCreateInfo&&)> fn) {
   fn(BuildKernel<ONNX_OPERATOR_TYPED_KERNEL_CLASS_NAME(kCpuExecutionProvider, kMSDomain, 1, uint8_t, DequantizeLinear)>());
   fn(BuildKernel<ONNX_OPERATOR_TYPED_KERNEL_CLASS_NAME(kCpuExecutionProvider, kMSDomain, 1, int8_t, DequantizeLinear)>());
   fn(BuildKernel<ONNX_OPERATOR_TYPED_KERNEL_CLASS_NAME(kCpuExecutionProvider, kMSDomain, 1, float, QuantizeLinear)>());
+  fn(BuildKernel<ONNX_OPERATOR_KERNEL_CLASS_NAME(kCpuExecutionProvider, kMSDomain, 1, Range)>());
 }
 }  // namespace contrib
 }  // namespace onnxruntime
