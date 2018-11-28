@@ -331,39 +331,6 @@ with the exception that numpy default keepdims to False instead of True.)DOC")
           AttributeProto::INT);
 }
 
-//   ONNX_CONTRIB_OPERATOR_SCHEMA(Range)
-//     .SetDomain(kMSDomain)
-//     .SinceVersion(1)
-//     .TypeConstraint(
-//         "T",
-//         {"tensor(float)", "tensor(double)", "tensor(int16)", "tensor(int32)", "tensor(int64)" },
-//         "Constrain input and output types.")
-//     .Input(
-//         0,
-//         "start",
-//         "Tensor(scalar, or dims=[1]). First entry in the range.",
-//         "T")
-//     .Input(
-//         1,
-//         "limit",
-//         "Tensor(scalar, or dims=[1]). Upper limit of sequence, exclusive.",
-//         "T")
-//     .Input(
-//         2,
-//         "delta",
-//         "Tensor(scalar, or dims=[1]). Number that increments start. Defaults to 1.",
-//         "T",
-//         OpSchema::Optional)
-//     .Output(
-//         0,
-//         "Y",
-//         "1-D Tensor of the range.",
-//         "T")
-//     .SetDoc( R"DOC(
-// Creates a sequence of numbers that begins at `start` and extends by increments of `delta`
-// up to but not including `limit`.
-// )DOC");
-
 class ONNX_OPERATOR_TYPED_KERNEL_CLASS_NAME(kCpuExecutionProvider, kMSDomain, 1, float, SampleOp);
 class ONNX_OPERATOR_TYPED_KERNEL_CLASS_NAME(kCpuExecutionProvider, kMSDomain, 1, float, ExpandDims);
 class ONNX_OPERATOR_KERNEL_CLASS_NAME(kCpuExecutionProvider, kMSDomain, 1, AttnLSTM);
