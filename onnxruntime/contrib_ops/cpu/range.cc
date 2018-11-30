@@ -7,7 +7,7 @@ namespace onnxruntime {
 namespace contrib {
 
 template <typename T>
-Status TemplatedCompute(OpKernelContext* ctx) {
+static Status ComputeRange(OpKernelContext* ctx) {
   auto& start_tensor = *ctx->Input<Tensor>(0);
   auto& limit_tensor = *ctx->Input<Tensor>(1);
   auto  delta_tensor_ptr = ctx->Input<Tensor>(2);
@@ -50,19 +50,19 @@ Status TemplatedCompute(OpKernelContext* ctx) {
 Status Range::Compute(OpKernelContext* ctx) const {
   auto data_type = ctx->Input<Tensor>(0)->DataType();
   if (data_type == DataTypeImpl::GetType<int32_t>()) {
-      return TemplatedCompute<int32_t>(ctx);
+      return ComputeRange<int32_t>(ctx);
   }
   else if (data_type == DataTypeImpl::GetType<int16_t>()) {
-      return TemplatedCompute<int16_t>(ctx);
+      return ComputeRange<int16_t>(ctx);
   }
   else if (data_type == DataTypeImpl::GetType<int64_t>()) {
-      return TemplatedCompute<int64_t>(ctx);
+      return ComputeRange<int64_t>(ctx);
   }
   else if (data_type == DataTypeImpl::GetType<float>()) {
-      return TemplatedCompute<float>(ctx);
+      return ComputeRange<float>(ctx);
   }
   else if (data_type == DataTypeImpl::GetType<double>()) {
-      return TemplatedCompute<double>(ctx);
+      return ComputeRange<double>(ctx);
   }
   return ONNXRUNTIME_MAKE_STATUS(ONNXRUNTIME, INVALID_ARGUMENT,  
                                  "Unsupportted tensor data type:",
