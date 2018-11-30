@@ -6,36 +6,35 @@
 namespace onnxruntime {
 namespace contrib {
 
-bool IsScalarLike(const Tensor* t) {
-  return (t == nullptr || (t->Shape().NumDimensions() <= 1 && t->Shape().Size() == 1));
-}
-
 template <typename T>
 Status TemplatedCompute(OpKernelContext* ctx) {
-  if (!IsScalarLike(ctx->Input<Tensor>(0))) {
+  auto& start_tensor = *ctx->Input<Tensor>(0);
+  auto& limit_tensor = *ctx->Input<Tensor>(1);
+  auto  delta_tensor_ptr = ctx->Input<Tensor>(2);
+
+  if (!start_tensor.Shape().IsScalar()) {
     return ONNXRUNTIME_MAKE_STATUS(ONNXRUNTIME, INVALID_ARGUMENT,  
                                    "start in Range operator should be scalar like tensor, yet got shape:",
-                                   ctx->Input<Tensor>(0)->Shape());
+                                   start_tensor.Shape());
   }
-  if (!IsScalarLike(ctx->Input<Tensor>(1))) {
+  if (!limit_tensor.Shape().IsScalar()) {
     return ONNXRUNTIME_MAKE_STATUS(ONNXRUNTIME, INVALID_ARGUMENT,  
                                    "limit in Range operator should be scalar like tensor, yet got shape:",
-                                   ctx->Input<Tensor>(1)->Shape());
+                                   limit_tensor.Shape());
   }
-  if (!IsScalarLike(ctx->Input<Tensor>(2))) {
+  if (delta_tensor_ptr == nullptr || !delta_tensor_ptr->Shape().IsScalar()) {
     return ONNXRUNTIME_MAKE_STATUS(ONNXRUNTIME, INVALID_ARGUMENT,  
                                    "delta in Range operator should be scalar like tensor, yet got shape:",
-                                   ctx->Input<Tensor>(2)->Shape());
+                                   delta_tensor_ptr->Shape());
   }
 
-  T start = *(ctx->Input<Tensor>(0)->template Data<T>());
-  T limit = *(ctx->Input<Tensor>(1)->template Data<T>());
-  T delta = (ctx->Input<Tensor>(2) == nullptr) ? T{1} : *(ctx->Input<Tensor>(2)->template Data<T>());
+  T start = *start_tensor.template Data<T>();
+  T limit = *limit_tensor.template Data<T>();
+  T delta = (delta_tensor_ptr == nullptr) ? T{1} : *(delta_tensor_ptr->template Data<T>());
   
   if (delta == T{0}) {
-    return ONNXRUNTIME_MAKE_STATUS(ONNXRUNTIME, INVALID_ARGUMENT,  "delta in Range operator can not be zero");
+    return ONNXRUNTIME_MAKE_STATUS(ONNXRUNTIME, INVALID_ARGUMENT,  "delta in Range operator can not be zero!");
   }
-
   int64_t n = static_cast<int64_t>(ceil((1.0 * (limit - start)) / delta));
   if (n <= 0) n = 1;
   TensorShape shape = {n};
