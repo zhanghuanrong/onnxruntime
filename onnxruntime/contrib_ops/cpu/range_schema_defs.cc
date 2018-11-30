@@ -11,12 +11,15 @@ namespace contrib {
 
 using ::ONNX_NAMESPACE::OPTIONAL;
 using ::ONNX_NAMESPACE::OpSchema;
+using ::ONNX_NAMESPACE::InferenceContext;
+using ::ONNX_NAMESPACE::TensorShapeProto;
 
 // This Doc based on LSTM_ver7, and modification
 static const char* Range_ver1_doc = R"DOC(
 Creates a sequence of numbers that begins at `start` and extends by increments of `delta`
 up to but not including `limit`.
 )DOC";
+
 
 OpSchema& RegisterRangeOpSchema(OpSchema&& op_schema){
   return op_schema
@@ -47,7 +50,12 @@ OpSchema& RegisterRangeOpSchema(OpSchema&& op_schema){
         "Y",
         "1-D Tensor of the range.",
         "T")
-    .SetDoc(Range_ver1_doc);
+    .SetDoc(Range_ver1_doc)
+    .TypeAndShapeInferenceFunction([](InferenceContext& ctx) {
+            propagateElemTypeFromInputToOutput(ctx, 0, 0);
+            TensorShapeProto::Dimension result_size;
+            updateOutputShape(ctx, 0, {result_size});
+        });
 }
 
 }  // namespace contrib
