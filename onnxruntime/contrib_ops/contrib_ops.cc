@@ -12,8 +12,8 @@
 namespace onnxruntime {
 namespace contrib {
 using ::ONNX_NAMESPACE::AttributeProto;
-using ::ONNX_NAMESPACE::OPTIONAL;
 using ::ONNX_NAMESPACE::OpSchema;
+using ::ONNX_NAMESPACE::OPTIONAL;
 
 void RegisterContribSchemas() {
   ONNX_CONTRIB_OPERATOR_SCHEMA(SampleOp)
@@ -106,7 +106,7 @@ Sample echo operator.)DOC");
           "Boolean whether to mark the beginning/end character with start of text character (0x02)/end of text character (0x03).",
           AttributeProto::INT)
       .Attr(
-          "padvalue",
+          "pad_value",
           "The string used to pad output tensors when the tokens extracted doesn't match the maximum number of tokens found.",
           AttributeProto::STRING)
       .Attr(
