@@ -111,12 +111,12 @@ C_UNDERSCORE(MlasExpKernelFma3):
         vfmadd231ps ymm1,ymm0,ymm14             # y = y * x + MlasExpConstants.P5;
         vfmadd231ps ymm1,ymm3,ymm0              # y = y * z + x;
         vbroadcastss ymm3,ExpConstants_One[rax] 
-        vaddps ymm1, ymm3                       # y = y + 1.0
+        vaddps ymm1,ymm1,ymm3                   # y = y + 1.0
 
         vcvttps2dq ymm2,ymm2
         vbroadcastss ymm3,ExpConstants_X7f[rax]
         vpaddd ymm2,ymm2,ymm3                   # emm0 =  Covert_to_Int(fx) + 0x7f 
-        pslld ymm2, 23                          # emm0 << 23
+        vpslld ymm2,ymm2,23                     # emm0 << 23
         vmulps ymm1,ymm1,ymm2                   # y = y * log2(fx)
         vmaxps ymm0,ymm1,ymm4                   # exp = max(y, input)
 
@@ -153,12 +153,12 @@ C_UNDERSCORE(MlasExpKernelFma3):
         vfmadd231ps ymm1,ymm0,ymm14             # y = y * x + MlasExpConstants.P5;
         vfmadd231ps ymm1,ymm3,ymm0              # y = y * z + x;
         vbroadcastss ymm3,ExpConstants_One[rax] 
-        vaddps ymm1, ymm3                       # y = y + 1.0
+        vaddps ymm1,ymm1,ymm3                        # y = y + 1.0
 
         vcvttps2dq ymm2,ymm2
         vbroadcastss ymm3,ExpConstants_X7f[rax]
         vpaddd ymm2,ymm2,ymm3                   # emm0 =  Covert_to_Int(fx) + 0x7f 
-        pslld ymm2, 23                          # emm0 << 23
+        vpslld ymm2,ymm2,23                     # emm0 << 23
         vmulps ymm1,ymm1,ymm2                   # y = y * log2(fx)
         vmaxps ymm0,ymm1,YMMWORD PTR [rdi]      # exp = max(y, input)
 
