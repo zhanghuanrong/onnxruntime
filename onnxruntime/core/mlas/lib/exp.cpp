@@ -23,8 +23,6 @@ Abstract:
 #include "mlasi.h"
 #include <cmath>
 
-#include <cmath>
-
 //
 // Bundles the floating point constants for use by kernels written in assembly.
 //
