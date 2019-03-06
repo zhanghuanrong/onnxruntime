@@ -22,6 +22,8 @@ Abstract:
 
 #include "mlasi.h"
 
+#include <cmath>
+
 //
 // Bundles the floating point constants for use by kernels written in assembly.
 //
@@ -84,7 +86,7 @@ Return Value:
         MLAS_FLOAT32X4 x = MlasMaximumFloat32x4(MlasBroadcastFloat32x4(MlasExpConstants.LowerRange), _x);
         x = MlasMinimumFloat32x4(MlasBroadcastFloat32x4(MlasExpConstants.UpperRange), x);
 
-        MLAS_FLOAT32X4 fx = MLasMultiplyAddFloat32x4(x, MlasBroadcastFloat32x4(MlasExpConstants.LOG2EF), MlasBroadcastFloat32x4(0.5f));
+        MLAS_FLOAT32X4 fx = MlasMultiplyAddFloat32x4(x, MlasBroadcastFloat32x4(MlasExpConstants.LOG2EF), MlasBroadcastFloat32x4(0.5f));
         fx = MlasFloorFloat32x4(fx);
         MLAS_FLOAT32X4 tmp = MlasMultiplyFloat32x4(fx, MlasBroadcastFloat32x4(MlasExpConstants.C1));
         MLAS_FLOAT32X4 z = MlasMultiplyFloat32x4(fx, MlasBroadcastFloat32x4(MlasExpConstants.C2));

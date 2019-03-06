@@ -32,6 +32,7 @@
 #include "core/providers/cpu/math/softmax_shared.h"
 #include "core/util/math.h"
 #include "core/util/math_cpuonly.h"
+#include "core/mlas/inc/mlas.h"
 
 #include "gsl/gsl_algorithm"
 #include "gsl/gsl_util"
@@ -67,7 +68,8 @@ common::Status SoftmaxCPU(const int64_t N,
   math::Gemm<float, CPUMathUtil>(CblasNoTrans, CblasNoTrans, n, d, 1, -1, rowmax, sum_multiplier, 1, Ydata, nullptr);
 
   // Exponentiation
-  math::Exp<float, CPUMathUtil>(nd, Ydata, Ydata, nullptr);
+  //math::Exp<float, CPUMathUtil>(nd, Ydata, Ydata, nullptr);
+  MlasComputeExp(Ydata, Ydata, nd);
   math::Gemv<float, CPUMathUtil>(CblasNoTrans, n, d, 1, Ydata, sum_multiplier, 0, scale, nullptr);
 
   // Do division
