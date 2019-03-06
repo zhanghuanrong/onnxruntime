@@ -583,7 +583,7 @@ MlasFloorFloat32x4(MLAS_FLOAT32X4 Vector)
 // calc 2^N
 inline
 MLAS_FLOAT32X4
-MlasLDExpFloat32x4(MLAS_FLOAT32X4 Vector)
+MlasLdExpFloat32x4(MLAS_FLOAT32X4 Vector)
 {
 #if defined(MLAS_NEON_INTRINSICS)
     return Vector; //TBD
