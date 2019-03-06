@@ -206,6 +206,22 @@ MlasComputeTanh(
     size_t N
     );
 
+void
+MLASCALL
+MlasComputeErff(
+    const float* Input,
+    float* Output,
+    size_t N
+    );
+
+void
+MLASCALL
+MlasComputeExpf(
+    const float* Input,
+    float* Output,
+    size_t N
+    );
+
 //
 // Half-precision floating-point routines.
 //
@@ -218,3 +234,4 @@ MlasConvertHalfToFloatBuffer(
     float* Destination,
     size_t Count
     );
+

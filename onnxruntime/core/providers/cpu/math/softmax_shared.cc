@@ -32,6 +32,7 @@
 #include "core/providers/cpu/math/softmax_shared.h"
 #include "core/util/math.h"
 #include "core/util/math_cpuonly.h"
+#include "core/mlas/inc/mlas.h"
 
 #include "gsl/gsl_algorithm"
 #include "gsl/gsl_util"
@@ -59,32 +60,94 @@ common::Status SoftmaxCPU(const int64_t N,
   const int d = gsl::narrow_cast<int>(D);
   const int nd = gsl::narrow_cast<int>(N * D);
 
-  math::RowwiseMax<float, CPUMathUtil>(n, d, Xdata, rowmax, nullptr);
-
-  // Put the intermediate result X - max(X) into Y by first copying X to Y, and then subtracting max from each entry
-  gsl::copy(gsl::make_span(Xdata, nd), gsl::make_span(Ydata, nd));
-
-  math::Gemm<float, CPUMathUtil>(CblasNoTrans, CblasNoTrans, n, d, 1, -1, rowmax, sum_multiplier, 1, Ydata, nullptr);
-
+  int num_split = 1;
   // Exponentiation
-  math::Exp<float, CPUMathUtil>(nd, Ydata, Ydata, nullptr);
-  math::Gemv<float, CPUMathUtil>(CblasNoTrans, n, d, 1, Ydata, sum_multiplier, 0, scale, nullptr);
+  #if defined USE_OPENMP
+  const int max_split = 48;
+  const int min_split_size = 16384;
+  int min_row_per_split = (min_split_size + d - 1) / d;
+  num_split = std::min((n + min_row_per_split - 1) / min_row_per_split, max_split);
+  int rows_per_split = n / num_split;
+  #endif
 
-  // Do division
-  if (!logarithmic) {
-    for (int i = 0; i < N; ++i) {
-      for (int j = 0; j < D; ++j) {
-        Ydata[i * D + j] /= scale[i];
+  if (num_split > 1) {
+    #pragma omp parallel for
+    for (int split = 0; split < num_split; ++split) {
+      int start_row = split * rows_per_split;
+      int real_row_count = (split < num_split - 1) ? rows_per_split : (n - start_row);
+      int real_elem_count = real_row_count * d;
+      int split_start = start_row * d;
+      gsl::copy(gsl::make_span(Xdata + split_start, real_elem_count), gsl::make_span(Ydata + split_start, real_elem_count));
+      math::RowwiseMax<float, CPUMathUtil>(real_row_count, d, Ydata + split_start, rowmax + start_row, nullptr);
+    }
+
+    math::Gemm<float, CPUMathUtil>(CblasNoTrans, CblasNoTrans, n, d, 1, -1, rowmax, sum_multiplier, 1, Ydata, nullptr);
+
+    #pragma omp parallel for
+    for (int split = 0; split < num_split; ++split) {
+      int start_row = split * rows_per_split;
+      int real_row_count = (split < num_split - 1) ? rows_per_split : (n - start_row);
+      int split_start = start_row * d;
+      int real_elem_count = real_row_count * d;
+      math::Exp<float, CPUMathUtil>(real_elem_count, Ydata + split_start, Ydata + split_start, nullptr);
+      //MlasComputeExpf(Ydata + split_start, Ydata + split_start, real_elem_count);
+    }
+
+    math::Gemv<float, CPUMathUtil>(CblasNoTrans, n, d, 1, Ydata, sum_multiplier, 0, scale, nullptr);
+
+    // Do division
+    if (!logarithmic) {
+      #pragma omp parallel for
+      for (int split = 0; split < num_split; ++split) {
+        int start_row = split * rows_per_split;
+        int real_row_count = (split < num_split - 1) ? rows_per_split : (n - start_row);
+        for (int i = start_row, e = start_row + real_row_count; i < e; ++i) {
+          for (int j = 0; j < D; ++j) {
+            Ydata[i * D + j] /= scale[i];
+          }
+        }
+      }
+    } else {
+      #pragma omp parallel for
+      for (int split = 0; split < num_split; ++split) {
+        int start_row = split * rows_per_split;
+        int real_row_count = (split < num_split - 1) ? rows_per_split : (n - start_row);
+        for (int i = start_row, e = start_row + real_row_count; i < e; ++i) {
+          for (int j = 0; j < D; ++j) {
+            Ydata[i * D + j] = Xdata[i * D + j] - rowmax[i] - log(fmaxf(scale[i], 1e-20f));
+          }
+        }
       }
     }
-  } else {
-    for (int i = 0; i < N; ++i) {
-      for (int j = 0; j < D; ++j) {
-        Ydata[i * D + j] = Xdata[i * D + j] - rowmax[i] - log(fmaxf(scale[i], 1e-20f));
+  }
+  else {
+    math::RowwiseMax<float, CPUMathUtil>(n, d, Xdata, rowmax, nullptr);
+    // Put the intermediate result X - max(X) into Y by first copying X to Y, and then subtracting max from each entry
+    gsl::copy(gsl::make_span(Xdata, nd), gsl::make_span(Ydata, nd));
+
+    math::Gemm<float, CPUMathUtil>(CblasNoTrans, CblasNoTrans, n, d, 1, -1, rowmax, sum_multiplier, 1, Ydata, nullptr);
+
+    // Exponentiation
+    math::Exp<float, CPUMathUtil>(nd, Ydata, Ydata, nullptr);
+
+    math::Gemv<float, CPUMathUtil>(CblasNoTrans, n, d, 1, Ydata, sum_multiplier, 0, scale, nullptr);
+
+    if (!logarithmic) {
+      for (int i = 0; i < N; ++i) {
+        for (int j = 0; j < D; ++j) {
+          Ydata[i * D + j] /= scale[i];
+        }
+      }
+    } else {
+      for (int i = 0; i < N; ++i) {
+        for (int j = 0; j < D; ++j) {
+          Ydata[i * D + j] = Xdata[i * D + j] - rowmax[i] - log(fmaxf(scale[i], 1e-20f));
+        }
       }
     }
   }
 
   return Status::OK();
 }
+
 }  // namespace onnxruntime

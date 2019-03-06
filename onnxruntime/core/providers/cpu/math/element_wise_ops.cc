@@ -3,6 +3,7 @@
 
 #include "core/providers/cpu/math/element_wise_ops.h"
 #include <unsupported/Eigen/SpecialFunctions>
+#include "core/mlas/inc/mlas.h"
 
 namespace onnxruntime {
 
@@ -394,26 +395,26 @@ Status Sqrt<float>::Compute(OpKernelContext* ctx) const {
   return Status::OK();
 }
 
-template <>
-Status Pow<float>::Compute(OpKernelContext* context) const {
-  const Tensor& Y = *context->Input<Tensor>(1);
-  std::function<void(EigenVectorMap<float>, ConstEigenVectorMap<float>, float)> input1scalar =
-      [](EigenVectorMap<float> output, ConstEigenVectorMap<float> input0, float input1) { output = Eigen::pow(input0.array(), input1); };
-  if (Y.Shape().Size() == 1) {
-    float value = *Y.Data<float>();
-    if (value == 2.0) {
-      input1scalar = [](EigenVectorMap<float> output, ConstEigenVectorMap<float> input0, float) { output = Eigen::square(input0.array()); };
-    } else if (value == 3.0) {
-      input1scalar = [](EigenVectorMap<float> output, ConstEigenVectorMap<float> input0, float) { output = Eigen::cube(input0.array()); };
-    }
-  }
-
-  return BroadcastTwo<float, float>(
-      *context,
-      [](EigenVectorMap<float> output, float input0, ConstEigenVectorMap<float> input1) { output = Eigen::pow(input0, input1.array()); },
-      input1scalar,
-      [](EigenVectorMap<float> output, ConstEigenVectorMap<float> input0, ConstEigenVectorMap<float> input1) { output = Eigen::pow(input0.array(), input1.array()); });
-}
+//template <>
+//Status Pow<float>::Compute(OpKernelContext* context) const {
+//  const Tensor& Y = *context->Input<Tensor>(1);
+//  std::function<void(EigenVectorMap<float>, ConstEigenVectorMap<float>, float)> input1scalar =
+//      [](EigenVectorMap<float> output, ConstEigenVectorMap<float> input0, float input1) { output = Eigen::pow(input0.array(), input1); };
+//  if (Y.Shape().Size() == 1) {
+//    float value = *Y.Data<float>();
+//    if (value == 2.0) {
+//      input1scalar = [](EigenVectorMap<float> output, ConstEigenVectorMap<float> input0, float) { output = Eigen::square(input0.array()); };
+//    } else if (value == 3.0) {
+//      input1scalar = [](EigenVectorMap<float> output, ConstEigenVectorMap<float> input0, float) { output = Eigen::cube(input0.array()); };
+//    }
+//  }
+//
+//  return BroadcastTwo<float, float>(
+//      *context,
+//      [](EigenVectorMap<float> output, float input0, ConstEigenVectorMap<float> input1) { output = Eigen::pow(input0, input1.array()); },
+//      input1scalar,
+//      [](EigenVectorMap<float> output, ConstEigenVectorMap<float> input0, ConstEigenVectorMap<float> input1) { output = Eigen::pow(input0.array(), input1.array()); });
+//}
 
 template <>
 Status Exp<float>::Compute(OpKernelContext* ctx) const {
@@ -1036,9 +1037,379 @@ Status Erf<float>::Compute(OpKernelContext* context) const {
   ORT_ENFORCE(X_ptr != nullptr);
   auto& X = *X_ptr;
   auto& Y = *context->Output(0, X.Shape());
-  EigenMap<float>(Y) = EigenMap<float>(X).array().erf();
+  size_t n = (int64_t)X.Shape().Size();
+
+#ifdef USE_OPENMP
+  const int64_t block_size = 8192;
+  if ((int64_t)n >= block_size*2) {
+    int64_t blocks = ((int64_t)n + block_size - 1) / block_size;
+
+    #pragma omp parallel for
+    for (int64_t i = 0; i < blocks; ++i) {
+      int64_t offset = i * block_size;
+      int64_t remain = ((int64_t)n) - offset;
+      int64_t len = std::min(remain, block_size);
+      MlasComputeErff(X.Data<float>() + offset, Y.MutableData<float>() + offset, (size_t)len);
+    }
+
+    return Status::OK();
+  }
+#endif
+
+  MlasComputeErff(X.Data<float>(), Y.MutableData<float>(), n);
 
   return Status::OK();
 }
 
-}  // namespace onnxruntime
+
+class Broadcast2Util {
+public:
+  static std::vector<int64_t> calcStrides(const std::vector<int64_t>& dims) {
+    std::vector<int64_t> stride(dims.size(), 1LL);
+    for (int64_t i = (int64_t)dims.size() - 2; i >= 0; --i) {
+      stride[i] = stride[i+1] * dims[i+1];
+    }
+    return stride;
+  }
+  
+  static void extend_prefix_with_1(std::vector<int64_t>& a, size_t num_axes) {
+    if (a.size() < num_axes) {
+      auto temp = std::vector<int64_t>(num_axes - a.size(), 1LL);
+      temp.insert(temp.end(), a.begin(), a.end());
+      a.swap(temp);
+    }
+  }
+  
+  static bool calcResultDims(const std::vector<int64_t>& a, const std::vector<int64_t>& b, std::vector<int64_t>& r) {
+    r.clear();
+    if (a.size() == 0 && b.size() == 0) return true;
+  
+    std::vector<int64_t> ta(a);
+    std::vector<int64_t> tb(b);
+    if (ta.size() == 0) ta.emplace_back(1LL);
+    if (tb.size() == 0) tb.emplace_back(1LL);
+    int64_t num_axes = (uint64_t)std::max(ta.size(), tb.size());
+    extend_prefix_with_1(ta, num_axes);
+    extend_prefix_with_1(tb, num_axes);
+    
+    for (int64_t i = 0; i < num_axes; ++i) {
+      if (ta[i] == tb[i]) {
+        r.push_back(ta[i]);
+      }
+      else if (ta[i] == 1LL) {
+        r.push_back(tb[i]);
+      }
+      else if (tb[i] == 1LL) {
+        r.push_back(ta[i]);
+      }
+      else {
+        return false;
+      }
+    }
+    return true;
+  }
+  
+  // calc effective compact dims for broadcast2
+  static bool calcCompactDims(const std::vector<int64_t>& a_orig, const std::vector<int64_t>& b_orig,
+                              std::vector<int64_t>& a, std::vector<int64_t>& b, std::vector<int64_t>& r)
+  {
+    std::vector<int64_t> ta(a_orig);
+    std::vector<int64_t> tb(b_orig);
+    if (ta.size() == 0) ta.emplace_back(1LL);
+    if (tb.size() == 0) tb.emplace_back(1LL);
+    auto num_axes = std::max(ta.size(), tb.size());
+    extend_prefix_with_1(ta, num_axes);
+    extend_prefix_with_1(tb, num_axes);
+    
+    a.clear();
+    b.clear();
+    r.clear();
+    for (int64_t i = (int64_t)num_axes - 1; i >= 0; --i) {
+      if (ta[i] == 1LL && tb[i] == 1LL) continue;  // squeeze
+      if (ta[i] != 1LL && tb[i] != 1LL && ta[i] != tb[i]) return false; //Can not broadcast
+  
+      if (a.size() > 0 &&
+          ((a.back() == b.back() && ta[i] == tb[1]) ||
+              (a.back() > b.back() && ta[i] > tb[i]) ||
+              (a.back() < b.back() && ta[i] < tb[i]))) {
+        a.back() *= ta[i];
+        b.back() *= tb[i];
+        continue;
+      }
+  
+      if (a.size() > 0) r.emplace_back(std::max(a.back(), b.back()));
+      a.emplace_back(ta[i]);
+      b.emplace_back(tb[i]);
+    }
+    if (a.size() == 0) {
+      a.emplace_back(1LL); b.emplace_back(1LL); r.emplace_back(1LL);
+      return true;
+    }
+    r.emplace_back(std::max(a.back(), b.back()));
+    std::reverse(a.begin(), a.end());
+    std::reverse(b.begin(), b.end());
+    std::reverse(r.begin(), r.end());
+    return true;
+  }
+};
+
+
+template<typename TIn, typename TOut>
+class Broadcast2Operator {
+public:
+  // dimsA,  dimsB, dimsR is compacted by Broadcast2Util::calcCompactDims()
+  Broadcast2Operator() = default;
+
+  bool setInputOutput(const TIn* a, const std::vector<int64_t>& dimsA,
+                      const TIn* b, const std::vector<int64_t>& dimsB, TOut* r) {
+    a_ = a;
+    b_ = b;
+    r_ = r;
+    std::vector<int64_t> da(dimsA);
+    std::vector<int64_t> db(dimsB);
+    if (!Broadcast2Util::calcCompactDims(dimsA, dimsB, da, db, dimsR_)) return false;
+    num_axes_ = (int64_t)dimsR_.size();
+    strideA_ = Broadcast2Util::calcStrides(da); 
+    strideB_ = Broadcast2Util::calcStrides(db); 
+    strideR_ = Broadcast2Util::calcStrides(dimsR_);
+    target_size_ = 1LL;
+    for (int64_t i = 0; i < (int64_t)dimsR_.size(); ++i) { 
+      target_size_ *= dimsR_[i]; 
+      if (da[i] == 1) strideA_[i] = 0LL;
+      if (db[i] == 1) strideB_[i] = 0LL;
+    }
+    return true;
+  }
+
+
+  template<typename FuncScalaOpVec, typename FuncVecOpScala,  typename FuncVecOpVec>
+  void run_split(int64_t start_row, int64_t num_rows, FuncScalaOpVec scalaOpVec, FuncVecOpScala vecOpScala, FuncVecOpVec vecOpVec) {
+    std::vector<int64_t> idx(num_axes_, 0);
+    std::vector<int64_t> dims(dimsR_);
+    dims[0] = num_rows;
+
+    TOut* r = r_ + start_row * strideR_[0];
+    const TIn* b = b_ + start_row * strideA_[0];
+    const TIn* a = a_ + start_row * strideB_[0];
+    const int64_t span_size = dims.back();
+
+    while (true) {
+      if (strideB_.back() == 0LL) {
+        vecOpScala(a, *b, r, span_size);
+      }
+      else if (strideA_.back() != 0LL) {
+        vecOpVec(a, b, r, span_size);
+      }
+      else {
+        scalaOpVec(*a, b, r, span_size);
+      }
+
+      r += span_size;
+      int64_t i = num_axes_ - 2;
+      for ( ; i >= 0; --i) {
+        a += strideA_[i];
+        b += strideB_[i];
+        if (++idx[i] < dims[i]) break;
+        a -= (strideA_[i] * idx[i]);
+        b -= (strideB_[i] * idx[i]);
+        idx[i] = 0LL;
+      }
+      if (i < 0) break;
+    } 
+  }
+
+  template<typename FuncScalaOpVec, typename FuncVecOpScala,  typename FuncVecOpVec>
+  void execute_op(FuncScalaOpVec scalaOpVec, FuncVecOpScala vecOpScala, FuncVecOpVec vecOpVec) {
+
+    int64_t num_splits = 1LL;
+    int64_t rows_per_split = dimsR_[0];
+    int64_t remain_rows = 0LL;
+
+    #ifdef USE_OPENMP
+    // always split at 0
+    if (target_size_ >= 524288) {
+      int64_t num_elems_per_row = strideR_[0];
+      int64_t min_split_size = 2*65536; 
+      int64_t max_splits = 48;
+      int64_t min_rows_per_split = (min_split_size + (num_elems_per_row - 1)) / num_elems_per_row;
+      num_splits = (dimsR_[0] + min_rows_per_split - 1) / min_rows_per_split;
+      num_splits = std::min(max_splits, num_splits);
+      rows_per_split = (dimsR_[0] + num_splits - 1) / num_splits;
+      remain_rows = dimsR_[0] % num_splits;
+    }
+
+    #pragma omp parallel for
+    #endif
+    for (int64_t split = 0; split < num_splits; ++split) {
+      int64_t start_row = (split < remain_rows) ? (split * (rows_per_split + 1)) : (remain_rows * (rows_per_split + 1) + (split - remain_rows)*rows_per_split);
+      int64_t num_rows = (split < remain_rows) ? (rows_per_split + 1) : (rows_per_split);
+      run_split(start_row, num_rows, scalaOpVec, vecOpScala, vecOpVec);
+    }
+  }
+
+private:
+  const TIn* a_;
+  const TIn* b_;
+  TOut* r_;
+  std::vector<int64_t> dimsR_;
+
+  int64_t num_axes_;
+  int64_t target_size_;
+
+  std::vector<int64_t> strideA_;
+  std::vector<int64_t> strideB_;
+  std::vector<int64_t> strideR_;
+}; // Broadcast2Operator
+
+
+class Broadcast2Wrapper {
+public:
+  template<typename TIn, typename TOut>
+  static Status ExecuteOperator(OpKernelContext* context, 
+                                std::function<void(const TIn value, const TIn* vec, TOut* out, int64_t num)> scalaOpVec,
+                                std::function<void(const TIn* vec, const TIn value, TOut* out, int64_t num)> vecOpScala, 
+                                std::function<void(const TIn* vec0, const TIn* vec1, TOut* out, int64_t num)> vecOpVec) {
+    const Tensor* t0 = context->Input<Tensor>(0);
+    const Tensor* t1 = context->Input<Tensor>(1);
+    auto dims0 = t0->Shape().GetDims();
+    auto dims1 = t1->Shape().GetDims();
+    std::vector<int64_t> cd0, cd1, cdr, dr;
+  
+    if (!Broadcast2Util::calcResultDims(dims0, dims1, dr)) {
+      throw 1;
+    }
+  
+    Tensor* out = context->Output(0, dr);
+    Broadcast2Operator<TIn, TOut> bo;
+    bo.setInputOutput(t0->Data<TIn>(), dims0, t1->Data<TIn>(), dims1, out->MutableData<TOut>());
+    bo.execute_op(scalaOpVec, vecOpScala, vecOpVec);
+    return Status::OK();
+  }
+};
+
+template <>
+Status Mul<float>::Compute(OpKernelContext* context) const {
+  return Broadcast2Wrapper::ExecuteOperator<float, float>(
+    context, 
+    [](const float v, const float* b, float* r, int64_t num) -> void {
+        ConstEigenVectorMap<float> vb(b, num);
+        EigenVectorMap<float> vr(r, num);
+        vr = v * vb.array();
+    }, 
+    [](const float* a, const float v, float* r, int64_t num) {
+        ConstEigenVectorMap<float> va(a, num);
+        EigenVectorMap<float> vr(r, num);
+        vr = va.array() * v;
+    }, 
+    [](const float* a, const float* b, float* r, int64_t num) {
+        ConstEigenVectorMap<float> va(a, num);
+        ConstEigenVectorMap<float> vb(b, num);
+        EigenVectorMap<float> vr(r, num);
+        vr = va.array() * vb.array();
+    }
+  );
+}
+
+template <>
+Status Add<float>::Compute(OpKernelContext* context) const {
+  return Broadcast2Wrapper::ExecuteOperator<float, float>(
+    context, 
+    [](const float v, const float* b, float* r, int64_t num) -> void {
+        ConstEigenVectorMap<float> vb(b, num);
+        EigenVectorMap<float> vr(r, num);
+        vr = v + vb.array();
+    }, 
+    [](const float* a, const float v, float* r, int64_t num) {
+        ConstEigenVectorMap<float> va(a, num);
+        EigenVectorMap<float> vr(r, num);
+        vr = va.array() + v;
+    }, 
+    [](const float* a, const float* b, float* r, int64_t num) {
+        ConstEigenVectorMap<float> va(a, num);
+        ConstEigenVectorMap<float> vb(b, num);
+        EigenVectorMap<float> vr(r, num);
+        vr = va.array() + vb.array();
+    }
+  );
+}
+
+template <>
+Status Sub<float>::Compute(OpKernelContext* context) const {
+  return Broadcast2Wrapper::ExecuteOperator<float, float>(
+    context, 
+    [](const float v, const float* b, float* r, int64_t num) -> void {
+        ConstEigenVectorMap<float> vb(b, num);
+        EigenVectorMap<float> vr(r, num);
+        vr = v - vb.array();
+    }, 
+    [](const float* a, const float v, float* r, int64_t num) {
+        ConstEigenVectorMap<float> va(a, num);
+        EigenVectorMap<float> vr(r, num);
+        vr = va.array() - v;
+    }, 
+    [](const float* a, const float* b, float* r, int64_t num) {
+        ConstEigenVectorMap<float> va(a, num);
+        ConstEigenVectorMap<float> vb(b, num);
+        EigenVectorMap<float> vr(r, num);
+        vr = va.array() - vb.array();
+    }
+  );
+}
+
+template <>
+Status Div<float>::Compute(OpKernelContext* context) const {
+  return Broadcast2Wrapper::ExecuteOperator<float, float>(
+    context, 
+    [](const float v, const float* b, float* r, int64_t num) -> void {
+        ConstEigenVectorMap<float> vb(b, num);
+        EigenVectorMap<float> vr(r, num);
+        vr = v / vb.array();
+    }, 
+    [](const float* a, const float v, float* r, int64_t num) {
+        ConstEigenVectorMap<float> va(a, num);
+        EigenVectorMap<float> vr(r, num);
+        vr = va.array() / v;
+    }, 
+    [](const float* a, const float* b, float* r, int64_t num) {
+        ConstEigenVectorMap<float> va(a, num);
+        ConstEigenVectorMap<float> vb(b, num);
+        EigenVectorMap<float> vr(r, num);
+        vr = va.array() / vb.array();
+    }
+  );
+}
+
+
+template <>
+Status Pow<float>::Compute(OpKernelContext* context) const {
+  return Broadcast2Wrapper::ExecuteOperator<float, float>(
+    context, 
+    [](const float& v, const float* b, float* r, int64_t num) -> void {
+        ConstEigenVectorMap<float> vb(b, num);
+        EigenVectorMap<float> vr(r, num);
+        vr = Eigen::pow(v, vb.array());
+    }, 
+    [](const float* a, const float& v, float* r, int64_t num) {
+        ConstEigenVectorMap<float> va(a, num);
+        EigenVectorMap<float> vr(r, num);
+        if (v == 2.0) {
+          vr = Eigen::square(va.array());
+        }
+        else if (v == 3.0) {
+          vr = Eigen::cube(va.array());
+        }
+        else {
+          vr = Eigen::pow(va.array(), v);
+        }
+    }, 
+    [](const float* a, const float* b, float* r, int64_t num) {
+        ConstEigenVectorMap<float> va(a, num);
+        ConstEigenVectorMap<float> vb(b, num);
+        EigenVectorMap<float> vr(r, num);
+        vr = Eigen::pow(va.array(), vb.array());
+    }
+  );
+}
+
+} // namespace onnxruntime
+
