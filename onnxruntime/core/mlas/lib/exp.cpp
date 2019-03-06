@@ -21,6 +21,7 @@ Abstract:
 --*/
 
 #include "mlasi.h"
+#include <cmath>
 
 #include <cmath>
 
@@ -40,6 +41,9 @@ extern "C" const struct {
     float P3;
     float P4;
     float P5;
+    float One;
+    float Half;
+    int32_t ExponetZeroInFloat;
 } MlasExpConstants = {
     88.3762626647950f, 
     -88.3762626647949f, 
@@ -51,7 +55,10 @@ extern "C" const struct {
     8.3334519073E-3f, 
     4.1665795894E-2f, 
     1.6666665459E-1f, 
-    5.0000001201E-1f
+    5.0000001201E-1f,
+    1.0f,
+    0.5f,
+    0x7f
 };
 
 void
