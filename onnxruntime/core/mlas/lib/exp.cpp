@@ -41,7 +41,7 @@ extern "C" const struct {
     float P5;
     float One;
     float Half;
-    int32_t ExponetZeroInFloat;
+    int32_t X7f;
 } MlasExpConstants = {
     88.3762626647950f, 
     -88.3762626647949f, 
