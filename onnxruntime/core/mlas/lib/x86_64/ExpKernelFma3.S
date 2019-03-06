@@ -40,7 +40,7 @@ Abstract:
         .equ    ExpConstants_P5, 40
         .equ    ExpConstants_One, 44
         .equ    ExpConstants_Half, 48
-        .equ    ExpConstants_ExponetZeroInFloat, 52
+        .equ    ExpConstants_ExponentZeroInFloat, 52
 
 //
 // Stack frame layout for the tanh kernel.
@@ -76,26 +76,45 @@ C_UNDERSCORE(MlasExpKernelFma3):
         lea     rax,C_UNDERSCORE(MlasExpConstants)[rip]
         vbroadcastss ymm4,ExpConstants_LowerRange[rax]
         vbroadcastss ymm5,ExpConstants_UpperRange[rax]
-        vbroadcastss ymm6,ExpConstants_alpha_13[rax]
-        vbroadcastss ymm7,ExpConstants_alpha_11[rax]
-        vbroadcastss ymm8,ExpConstants_alpha_9[rax]
-        vbroadcastss ymm9,ExpConstants_alpha_7[rax]
-        vbroadcastss ymm10,ExpConstants_alpha_5[rax]
-        vbroadcastss ymm11,ExpConstants_alpha_3[rax]
-        vbroadcastss ymm12,ExpConstants_alpha_1[rax]
-        vbroadcastss ymm13,ExpConstants_beta_6[rax]
-        vbroadcastss ymm14,ExpConstants_beta_2[rax]
-        vbroadcastss ymm15,ExpConstants_beta_0[rax]
+        vbroadcastss ymm6,ExpConstants_LOG2EF[rax]
+        vbroadcastss ymm7,ExpConstants_C1[rax]
+        vbroadcastss ymm8,ExpConstants_C2[rax]
+        vbroadcastss ymm9,ExpConstants_P0[rax]
+        vbroadcastss ymm10,ExpConstants_P1[rax]
+        vbroadcastss ymm11,ExpConstants_P2[rax]
+        vbroadcastss ymm12,ExpConstants_P3[rax]
+        vbroadcastss ymm13,ExpConstants_P4[rax]
+        vbroadcastss ymm14,ExpConstants_P5[rax]
 
         sub     rdx,8
         jb      .LProcessRemainingCount
 
-.LComputeTanhBy8Loop:
+.LComputeExpBy8Loop:
         vmaxps  ymm0,ymm4,YMMWORD PTR [rdi]     # clamp lower bound
-        vmovaps ymm2,ymm7
         vminps  ymm0,ymm5,ymm0                  # clamp upper bound
-        vmulps  ymm1,ymm0,ymm0                  # x2
-        vbroadcastss ymm3,ExpConstants_beta_4[rax]
+        vbroadcastss ymm3, ExpConstants_Half[rax]
+        vmovaps ymm2,ymm6                       # MlasExpConstants.LOG2EF
+        vfmadd231ps ymm2,ymm0,ymm3              # fx = x * MlasExpConstants.LOG2EF + 0.5f)
+        vroundps ymm2, ymm2, 0xB                # fx = floor(fx)
+        vmulps ymm1, ymm2, ymm7                 # tmp(ymm1) = fx * c1
+        vmulps ymm3, ymm2, ymm8                 # z(ymm3) = fx * c2
+        vsubps ymm0, ymm0, ymm1                 # x = x - tmp
+        vsubps ymm0, ymm0, ymm3                 # x = x - z
+        vmulps ymm3, ymm0, ymm0                 # z = x * x
+
+        vmovaps ymm1, ymm9                      # y = MlasExpConstants.P0 
+        vfmadd231ps ymm1,ymm0,ymm10             # y = y * x + MlasExpConstants.P1;
+        vfmadd231ps ymm1,ymm0,ymm11             # y = y * x + MlasExpConstants.P2;
+        vfmadd231ps ymm1,ymm0,ymm12             # y = y * x + MlasExpConstants.P3;
+        vfmadd231ps ymm1,ymm0,ymm13             # y = y * x + MlasExpConstants.P4;
+        vfmadd231ps ymm1,ymm0,ymm14             # y = y * x + MlasExpConstants.P5;
+        vfmadd231ps ymm1,ymm3,ymm0              # y = y * z + x;
+        vbroadcastss ymm3, ExpConstants_One[rax] # 1.0
+        vaddps ymm1, ymm3
+
+        /////////////////////////////////////////////////////////
+
+
         vfmadd231ps ymm2,ymm1,ymm6              # p = x2 * alpha_13 + alpha_11
         vfmadd213ps ymm2,ymm1,ymm8              # p = x2 * p + alpha_9
         vfmadd213ps ymm2,ymm1,ymm9              # p = x2 * p + alpha_7
