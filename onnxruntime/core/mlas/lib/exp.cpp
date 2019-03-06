@@ -81,10 +81,10 @@ Return Value:
 {
     while (N >= 4) {
         MLAS_FLOAT32X4 _x = MlasLoadFloat32x4(Input);
-        MLAS_FLOAT32X4 x = MlasMaximumFloat32x4(MlasBroadcastFloat32x4(MlasExpConstants.LowerRange), Value);
-        x = MlasMinimumFloat32x4(MlasBroadcastFloat32x4(MlasExpConstants.UpperRange), Value);
+        MLAS_FLOAT32X4 x = MlasMaximumFloat32x4(MlasBroadcastFloat32x4(MlasExpConstants.LowerRange), _x);
+        x = MlasMinimumFloat32x4(MlasBroadcastFloat32x4(MlasExpConstants.UpperRange), x);
 
-        MLAS_FLOAT32X4 fx = MLasMultiplyAddFloat32x4(x, MlasBroadcastFloat32x4(MlasExpConstants.LOG2EF, MlasBroadcastFloat32x4(0.5f)));
+        MLAS_FLOAT32X4 fx = MLasMultiplyAddFloat32x4(x, MlasBroadcastFloat32x4(MlasExpConstants.LOG2EF), MlasBroadcastFloat32x4(0.5f));
         fx = MlasFloorFloat32x4(fx);
         MLAS_FLOAT32X4 tmp = MlasMultiplyFloat32x4(fx, MlasBroadcastFloat32x4(MlasExpConstants.C1));
         MLAS_FLOAT32X4 z = MlasMultiplyFloat32x4(fx, MlasBroadcastFloat32x4(MlasExpConstants.C2));
@@ -102,8 +102,8 @@ Return Value:
         y = MlasAddFloat32x4(y, MlasBroadcastFloat32x4(1.0f));
 
         // build 2^n
-        MLAS_FLOAT32X4 emm0 = MlasLDExpFloat32x4(fx);
-        y = MlasMaxiumFloat32x4(MlasMultiplyFloat32x4(y, emm0), _x);
+        MLAS_FLOAT32X4 emm0 = MlasLdExpFloat32x4(fx);
+        y = MlasMaximumFloat32x4(MlasMultiplyFloat32x4(y, emm0), _x);
 
         MlasStoreFloat32x4(Output, y);
 
@@ -115,7 +115,7 @@ Return Value:
     while (N > 0) {
         float _x = *Input++;
 
-        float x = (std::min)(MlasExpConstants.UpperRange, (std::max)(MlasExpConstants.LowerRange, Value));
+        float x = (std::min)(MlasExpConstants.UpperRange, (std::max)(MlasExpConstants.LowerRange, _x));
 
         float fx = std::floor(x * MlasExpConstants.LOG2EF + 0.5f);
         float tmp = fx * MlasExpConstants.C1;
@@ -132,9 +132,7 @@ Return Value:
         y = y * z + x;
         y = y + 1.0f;
         
-        int32_t emm0 = *(int*)&fx;
-        emm0 += 0x7f;
-        emm0 = emm0 << 23;
+        int32_t emm0 = ((int32_t)fx + 0x7f) << 23;
         y = y * (*(float*)&emm0);
         y = (std::max)(y, _x);
 
