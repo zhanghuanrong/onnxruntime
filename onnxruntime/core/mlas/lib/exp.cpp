@@ -21,6 +21,7 @@ Abstract:
 --*/
 
 #include "mlasi.h"
+#include <cmath>
 
 //
 // Bundles the floating point constants for use by kernels written in assembly.
@@ -38,6 +39,9 @@ extern "C" const struct {
     float P3;
     float P4;
     float P5;
+    float One;
+    float Half;
+    int32_t ExponetZeroInFloat;
 } MlasExpConstants = {
     88.3762626647950f, 
     -88.3762626647949f, 
@@ -49,7 +53,10 @@ extern "C" const struct {
     8.3334519073E-3f, 
     4.1665795894E-2f, 
     1.6666665459E-1f, 
-    5.0000001201E-1f
+    5.0000001201E-1f,
+    1.0f,
+    0.5f,
+    0x7f
 };
 
 void
@@ -84,7 +91,7 @@ Return Value:
         MLAS_FLOAT32X4 x = MlasMaximumFloat32x4(MlasBroadcastFloat32x4(MlasExpConstants.LowerRange), _x);
         x = MlasMinimumFloat32x4(MlasBroadcastFloat32x4(MlasExpConstants.UpperRange), x);
 
-        MLAS_FLOAT32X4 fx = MLasMultiplyAddFloat32x4(x, MlasBroadcastFloat32x4(MlasExpConstants.LOG2EF), MlasBroadcastFloat32x4(0.5f));
+        MLAS_FLOAT32X4 fx = MlasMultiplyAddFloat32x4(x, MlasBroadcastFloat32x4(MlasExpConstants.LOG2EF), MlasBroadcastFloat32x4(0.5f));
         fx = MlasFloorFloat32x4(fx);
         MLAS_FLOAT32X4 tmp = MlasMultiplyFloat32x4(fx, MlasBroadcastFloat32x4(MlasExpConstants.C1));
         MLAS_FLOAT32X4 z = MlasMultiplyFloat32x4(fx, MlasBroadcastFloat32x4(MlasExpConstants.C2));
