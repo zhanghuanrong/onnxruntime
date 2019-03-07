@@ -242,8 +242,8 @@ Return Value:
 {
 #if defined(MLAS_TARGET_AMD64)
     //MlasPlatform.TanhKernelRoutine(Input, Output, N);
-    MlasTanhKernel(Input, Output, N);
+    MlasExpKernel(Input, Output, N);
 #else
-    MlasTanhKernel(Input, Output, N);
+    MlasExpKernel(Input, Output, N);
 #endif
 }
