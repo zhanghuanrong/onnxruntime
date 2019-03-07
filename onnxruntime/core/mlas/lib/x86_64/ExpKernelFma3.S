@@ -6,7 +6,7 @@ Licensed under the MIT License.
 
 Module Name:
 
-    TanhKernelFma3.s
+    ExpKernelFma3.s
 
 Abstract:
 
@@ -74,8 +74,8 @@ Return Value:
 C_UNDERSCORE(MlasExpKernelFma3):
 
         lea     rax,C_UNDERSCORE(MlasExpConstants)[rip]
-        vbroadcastss ymm4,ExpConstants_LowerRange[rax]
-        vbroadcastss ymm5,ExpConstants_UpperRange[rax]
+        vbroadcastss ymm5,ExpConstants_LowerRange[rax]
+        vbroadcastss ymm6,ExpConstants_UpperRange[rax]
         vbroadcastss ymm7,ExpConstants_C1[rax]
         vbroadcastss ymm8,ExpConstants_C2[rax]
         vbroadcastss ymm9,ExpConstants_P0[rax]

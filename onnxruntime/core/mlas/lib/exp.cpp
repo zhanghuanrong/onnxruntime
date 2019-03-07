@@ -109,7 +109,7 @@ Return Value:
         y = MlasAddFloat32x4(y, MlasBroadcastFloat32x4(1.0f));
 
         // build 2^n
-        MLAS_FLOAT32X4 emm0 = MlasLdExpFloat32x4(fx);
+        MLAS_FLOAT32X4 emm0 = MlasPower2Float32x4(fx);
         y = MlasMaximumFloat32x4(MlasMultiplyFloat32x4(y, emm0), _x);
 
         MlasStoreFloat32x4(Output, y);
