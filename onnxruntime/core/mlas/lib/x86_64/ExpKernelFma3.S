@@ -27,8 +27,8 @@ Abstract:
 // Structure layout for the exp constants block.
 //
 
-        .equ    ExpConstants_LowerRange, 0
-        .equ    ExpConstants_UpperRange, 4
+        .equ    ExpConstants_UpperRange, 0
+        .equ    ExpConstants_LowerRange, 4
         .equ    ExpConstants_LOG2EF, 8
         .equ    ExpConstants_C1, 12
         .equ    ExpConstants_C2, 16
@@ -43,7 +43,7 @@ Abstract:
         .equ    ExpConstants_X7f, 52
 
 //
-// Stack frame layout for the tanh kernel.
+// Stack frame layout for the exp kernel.
 //
 
         .equ    ExpKernelFrame_CountN, -8
@@ -90,13 +90,13 @@ C_UNDERSCORE(MlasExpKernelFma3):
         jb      .LProcessRemainingCount
 
 .LComputeExpBy8Loop:
-        vmovups ymm4, YMMWORD PTR [rdi]
+        vmovups ymm4,YMMWORD PTR [rdi]
         vmaxps  ymm0,ymm5,ymm4                  # clamp lower bound
         vminps  ymm0,ymm6,ymm0                  # clamp upper bound
         vbroadcastss ymm3,ExpConstants_Half[rax]
         vmovaps ymm2,ymm15                      # MlasExpConstants.LOG2EF
-        vfmadd231ps ymm2,ymm0,ymm3              # fx = x * MlasExpConstants.LOG2EF + 0.5f)
-        vroundps ymm2,ymm2,0xB                  # fx = floor(fx)
+        vfmadd213ps ymm2,ymm0,ymm3              # fx = x * MlasExpConstants.LOG2EF + 0.5f)
+        vroundps ymm2,ymm2,1                    # fx = floor(fx)
         vmulps ymm1,ymm2,ymm7                   # tmp(ymm1) = fx * c1
         vmulps ymm3,ymm2,ymm8                   # z(ymm3) = fx * c2
         vsubps ymm0,ymm0,ymm1                   # x = x - tmp
@@ -104,12 +104,12 @@ C_UNDERSCORE(MlasExpKernelFma3):
         vmulps ymm3,ymm0,ymm0                   # z = x * x
 
         vmovaps ymm1,ymm9                       # y = MlasExpConstants.P0 
-        vfmadd231ps ymm1,ymm0,ymm10             # y = y * x + MlasExpConstants.P1;
-        vfmadd231ps ymm1,ymm0,ymm11             # y = y * x + MlasExpConstants.P2;
-        vfmadd231ps ymm1,ymm0,ymm12             # y = y * x + MlasExpConstants.P3;
-        vfmadd231ps ymm1,ymm0,ymm13             # y = y * x + MlasExpConstants.P4;
-        vfmadd231ps ymm1,ymm0,ymm14             # y = y * x + MlasExpConstants.P5;
-        vfmadd231ps ymm1,ymm3,ymm0              # y = y * z + x;
+        vfmadd213ps ymm1,ymm0,ymm10             # y = y * x + MlasExpConstants.P1;
+        vfmadd213ps ymm1,ymm0,ymm11             # y = y * x + MlasExpConstants.P2;
+        vfmadd213ps ymm1,ymm0,ymm12             # y = y * x + MlasExpConstants.P3;
+        vfmadd213ps ymm1,ymm0,ymm13             # y = y * x + MlasExpConstants.P4;
+        vfmadd213ps ymm1,ymm0,ymm14             # y = y * x + MlasExpConstants.P5;
+        vfmadd213ps ymm1,ymm3,ymm0              # y = y * z + x;
         vbroadcastss ymm3,ExpConstants_One[rax] 
         vaddps ymm1,ymm1,ymm3                   # y = y + 1.0
 
@@ -124,7 +124,7 @@ C_UNDERSCORE(MlasExpKernelFma3):
         vmovups YMMWORD PTR [rsi],ymm0
         add     rsi,8*4                         # advance output by 8 elements
         sub     rdx,8
-        jae     .LComputeTanhBy8Loop
+        jae     .LComputeExpBy8Loop
 
 .LProcessRemainingCount:
         add     rdx,8                           # correct for over-subtract above
@@ -133,12 +133,13 @@ C_UNDERSCORE(MlasExpKernelFma3):
         vbroadcastss ymm4,DWORD PTR ExpKernelFrame_CountN[rsp]
         vpcmpgtd ymm4,ymm4,YMMWORD PTR C_UNDERSCORE(MlasMaskMoveAvx)[rip]
 
-        vmaxps  ymm0,ymm5,YMMWORD PTR [rdi]     # clamp lower bound
+        vmovups ymm0,YMMWORD PTR [rdi]     
+        vmaxps  ymm0,ymm5,ymm0                  # clamp lower bound
         vminps  ymm0,ymm6,ymm0                  # clamp upper bound
         vbroadcastss ymm3,ExpConstants_Half[rax]
         vmovaps ymm2,ymm15                      # MlasExpConstants.LOG2EF
-        vfmadd231ps ymm2,ymm0,ymm3              # fx = x * MlasExpConstants.LOG2EF + 0.5f)
-        vroundps ymm2,ymm2,0xB                  # fx = floor(fx)
+        vfmadd213ps ymm2,ymm0,ymm3              # fx = x * MlasExpConstants.LOG2EF + 0.5f)
+        vroundps ymm2,ymm2,1                    # fx = floor(fx)
         vmulps ymm1,ymm2,ymm7                   # tmp(ymm1) = fx * c1
         vmulps ymm3,ymm2,ymm8                   # z(ymm3) = fx * c2
         vsubps ymm0,ymm0,ymm1                   # x = x - tmp
@@ -146,21 +147,22 @@ C_UNDERSCORE(MlasExpKernelFma3):
         vmulps ymm3,ymm0,ymm0                   # z = x * x
 
         vmovaps ymm1,ymm9                       # y = MlasExpConstants.P0 
-        vfmadd231ps ymm1,ymm0,ymm10             # y = y * x + MlasExpConstants.P1;
-        vfmadd231ps ymm1,ymm0,ymm11             # y = y * x + MlasExpConstants.P2;
-        vfmadd231ps ymm1,ymm0,ymm12             # y = y * x + MlasExpConstants.P3;
-        vfmadd231ps ymm1,ymm0,ymm13             # y = y * x + MlasExpConstants.P4;
-        vfmadd231ps ymm1,ymm0,ymm14             # y = y * x + MlasExpConstants.P5;
-        vfmadd231ps ymm1,ymm3,ymm0              # y = y * z + x;
+        vfmadd213ps ymm1,ymm0,ymm10             # y = y * x + MlasExpConstants.P1;
+        vfmadd213ps ymm1,ymm0,ymm11             # y = y * x + MlasExpConstants.P2;
+        vfmadd213ps ymm1,ymm0,ymm12             # y = y * x + MlasExpConstants.P3;
+        vfmadd213ps ymm1,ymm0,ymm13             # y = y * x + MlasExpConstants.P4;
+        vfmadd213ps ymm1,ymm0,ymm14             # y = y * x + MlasExpConstants.P5;
+        vfmadd213ps ymm1,ymm3,ymm0              # y = y * z + x;
         vbroadcastss ymm3,ExpConstants_One[rax] 
-        vaddps ymm1,ymm1,ymm3                        # y = y + 1.0
+        vaddps ymm1,ymm1,ymm3                   # y = y + 1.0
 
         vcvttps2dq ymm2,ymm2
         vbroadcastss ymm3,ExpConstants_X7f[rax]
         vpaddd ymm2,ymm2,ymm3                   # emm0 =  Covert_to_Int(fx) + 0x7f 
         vpslld ymm2,ymm2,23                     # emm0 << 23
         vmulps ymm1,ymm1,ymm2                   # y = y * log2(fx)
-        vmaxps ymm0,ymm1,YMMWORD PTR [rdi]      # exp = max(y, input)
+        vmovups ymm0,YMMWORD PTR [rdi]     
+        vmaxps ymm0,ymm1,ymm0                   # exp = max(y, input)
 
         vmaskmovps YMMWORD PTR [rsi],ymm4,ymm0
 

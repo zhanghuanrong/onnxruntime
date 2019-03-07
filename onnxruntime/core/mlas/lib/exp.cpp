@@ -91,7 +91,7 @@ Return Value:
         MLAS_FLOAT32X4 x = MlasMaximumFloat32x4(MlasBroadcastFloat32x4(MlasExpConstants.LowerRange), _x);
         x = MlasMinimumFloat32x4(MlasBroadcastFloat32x4(MlasExpConstants.UpperRange), x);
 
-        MLAS_FLOAT32X4 fx = MlasMultiplyAddFloat32x4(x, MlasBroadcastFloat32x4(MlasExpConstants.LOG2EF), MlasBroadcastFloat32x4(0.5f));
+        MLAS_FLOAT32X4 fx = MlasMultiplyAddFloat32x4(x, MlasBroadcastFloat32x4(MlasExpConstants.LOG2EF), MlasBroadcastFloat32x4(MlasExpConstants.Half));
         fx = MlasFloorFloat32x4(fx);
         MLAS_FLOAT32X4 tmp = MlasMultiplyFloat32x4(fx, MlasBroadcastFloat32x4(MlasExpConstants.C1));
         MLAS_FLOAT32X4 z = MlasMultiplyFloat32x4(fx, MlasBroadcastFloat32x4(MlasExpConstants.C2));
@@ -106,7 +106,7 @@ Return Value:
         y = MlasMultiplyAddFloat32x4(y, x, MlasBroadcastFloat32x4(MlasExpConstants.P4));
         y = MlasMultiplyAddFloat32x4(y, x, MlasBroadcastFloat32x4(MlasExpConstants.P5));
         y = MlasMultiplyAddFloat32x4(y, z, x);
-        y = MlasAddFloat32x4(y, MlasBroadcastFloat32x4(1.0f));
+        y = MlasAddFloat32x4(y, MlasBroadcastFloat32x4(MlasExpConstants.One));
 
         // build 2^n
         MLAS_FLOAT32X4 emm0 = MlasPower2Float32x4(fx);
@@ -124,7 +124,7 @@ Return Value:
 
         float x = (std::min)(MlasExpConstants.UpperRange, (std::max)(MlasExpConstants.LowerRange, _x));
 
-        float fx = std::floor(x * MlasExpConstants.LOG2EF + 0.5f);
+        float fx = std::floor(x * MlasExpConstants.LOG2EF + MlasExpConstants.Half);
         float tmp = fx * MlasExpConstants.C1;
         float z = fx * MlasExpConstants.C2;
         
@@ -137,9 +137,9 @@ Return Value:
         y = y * x + MlasExpConstants.P4;
         y = y * x + MlasExpConstants.P5;
         y = y * z + x;
-        y = y + 1.0f;
+        y = y + MlasExpConstants.One;
         
-        int32_t emm0 = ((int32_t)fx + 0x7f) << 23;
+        int32_t emm0 = ((int32_t)fx + MlasExpConstants.X7f) << 23;
         y = y * (*(float*)&emm0);
         y = (std::max)(y, _x);
 
@@ -241,8 +241,8 @@ Return Value:
 --*/
 {
 #if defined(MLAS_TARGET_AMD64)
-    //MlasPlatform.TanhKernelRoutine(Input, Output, N);
-    MlasExpKernel(Input, Output, N);
+    MlasPlatform.ExpKernelRoutine(Input, Output, N);
+    //MlasExpKernel(Input, Output, N);
 #else
     MlasExpKernel(Input, Output, N);
 #endif
