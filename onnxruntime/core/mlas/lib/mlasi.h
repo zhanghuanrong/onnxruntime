@@ -173,6 +173,16 @@ void
 
 typedef MLAS_TANH_KERNEL_ROUTINE* PMLAS_TANH_KERNEL_ROUTINE;
 
+typedef
+void
+(MLASCALL MLAS_ELEMENTWISE_KERNEL_ROUTINE)(
+    const float* Input,
+    float* Output,
+    size_t N
+    );
+
+typedef MLAS_ELEMENTWISE_KERNEL_ROUTINE* PMLAS_ELEMENTWISE_KERNEL_ROUTINE;
+
 extern "C" {
 
     MLAS_SGEMM_KERNEL_ROUTINE MlasSgemmKernelZero;
@@ -202,9 +212,12 @@ extern "C" {
 
     MLAS_TANH_KERNEL_ROUTINE MlasLogisticKernel;
     MLAS_TANH_KERNEL_ROUTINE MlasTanhKernel;
+    MLAS_ELEMENTWISE_KERNEL_ROUTINE MlasExpKernel;
+    
 #if defined(MLAS_TARGET_AMD64)
     MLAS_TANH_KERNEL_ROUTINE MlasLogisticKernelFma3;
     MLAS_TANH_KERNEL_ROUTINE MlasTanhKernelFma3;
+    MLAS_ELEMENTWISE_KERNEL_ROUTINE MlasExpKernelFma3;
 #endif
 
 }
@@ -268,6 +281,7 @@ struct MLAS_PLATFORM {
     PMLAS_SGEMM_TRANSPOSE_PACKB_BLOCK_ROUTINE TransposePackB16x4Routine;
     PMLAS_LOGISTIC_KERNEL_ROUTINE LogisticKernelRoutine;
     PMLAS_TANH_KERNEL_ROUTINE TanhKernelRoutine;
+    PMLAS_ELEMENTWISE_KERNEL_ROUTINE ExpKernelRoutine;
 #endif
 
 #if defined(MLAS_USE_WIN32_THREADPOOL)
@@ -580,7 +594,7 @@ MlasFloorFloat32x4(MLAS_FLOAT32X4 Vector)
 // calc 2^N
 inline
 MLAS_FLOAT32X4
-MlasLdExpFloat32x4(MLAS_FLOAT32X4 Vector)
+MlasPower2Float32x4(MLAS_FLOAT32X4 Vector)
 {
 #if defined(MLAS_NEON_INTRINSICS)
     return Vector; //TBD
