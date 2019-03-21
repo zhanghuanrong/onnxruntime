@@ -3,6 +3,7 @@
 
 #include "core/providers/cpu/math/element_wise_ops.h"
 #include <unsupported/Eigen/SpecialFunctions>
+#include "core/mlas/inc/mlas.h"
 
 namespace onnxruntime {
 
@@ -420,8 +421,30 @@ Status Exp<float>::Compute(OpKernelContext* ctx) const {
   auto& X = *ctx->Input<Tensor>(0);
   auto& Y = *ctx->Output(0, X.Shape());
 
-  EigenMap<float>(Y) = EigenMap<float>(X).array().exp();
+  //EigenMap<float>(Y) = EigenMap<float>(X).array().exp();
+  static const int64_t EXP_COAST=65536LL;
+  static const int64_t EXP_MIN_BLOCK_SIZE=16384;
+  static const int64_t MAX_BLOCKS = 32;
 
+  const float* xdata = X.Data<float>();
+  float* ydata = Y.MutableData<float>();
+  int64_t total_size = X.Shape().Size();
+  if (total_size <= EXP_COAST) {
+      MlasComputeExp(xdata, ydata, total_size);
+      return Status::OK();
+  }
+  
+  const int64_t block_size = std::max(EXP_MIN_BLOCK_SIZE, total_size / MAX_BLOCKS);
+  int64_t block_count = (total_size + block_size - 1) / block_size;
+
+  #ifdef USE_OPENMP
+  #pragma omp parallel for
+  #endif
+  for (int64_t b = 0; b < block_count; ++b) {
+      int64_t bs = b * block_size;
+      int64_t n = (b == block_count - 1) ? (total_size - bs) : block_size;
+      MlasComputeExp(xdata + bs, ydata + bs, n);
+  }
   return Status::OK();
 }
 

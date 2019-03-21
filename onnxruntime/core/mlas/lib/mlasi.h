@@ -582,7 +582,9 @@ MLAS_FLOAT32X4
 MlasFloorFloat32x4(MLAS_FLOAT32X4 Vector)
 {
 #if defined(MLAS_NEON_INTRINSICS)
-    return Vector; //TBD
+    MLAS_FLOAT32X4 round_down = vcvtq_f32_s32(vcvtq_s32_f32(Vector));
+    uint32x4_t mask = vandq_u32(vcgtq_f32(Vector, round_down), vreinterpretq_u32_f32(vdupq_n_f32(1.0f)));
+    return vsubq_f32(round_down, vreinterpret_f32_u32(mask));
 #elif defined(MLAS_SSE2_INTRINSICS)
     MLAS_FLOAT32X4 tmp = _mm_cvtepi32_ps(_mm_cvttps_epi32(Vector));
     MLAS_FLOAT32X4 mask = _mm_cmpgt_ps(tmp, Vector);
@@ -591,13 +593,14 @@ MlasFloorFloat32x4(MLAS_FLOAT32X4 Vector)
 #endif
 }
 
-// calc 2^N
+// calc 2^int(N)
 inline
 MLAS_FLOAT32X4
-MlasPower2Float32x4(MLAS_FLOAT32X4 Vector)
+MlasPowerOf2Float32x4(MLAS_FLOAT32X4 Vector)
 {
 #if defined(MLAS_NEON_INTRINSICS)
-    return Vector; //TBD
+    int32x4_t emm0 = vaddq_s32(vcvtq_s32_f32(Vector), vdupq_n_s32(0x7f));
+    return vreinterpretq_f32_s32(vshlq_n_s32(emm0, 23));
 #elif defined(MLAS_SSE2_INTRINSICS)
     __m128i emm0 = _mm_add_epi32(_mm_cvttps_epi32(Vector), _mm_set1_epi32(0x7f));
     return _mm_castsi128_ps(_mm_slli_epi32(emm0, 23));
