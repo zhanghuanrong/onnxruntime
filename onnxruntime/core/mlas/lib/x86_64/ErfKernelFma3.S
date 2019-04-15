@@ -76,6 +76,13 @@ Abstract:
         .equ    ErfBuffer1, 128
         .equ    ErfBufferEnd, 256
 
+        .align 32
+ErfNumberOfInputMask:
+        .rept 8
+        .long 0xFFFFFFFF
+        .endr
+        .long 0,0,0,0,0,0,0,0
+
 /*++
 
 Routine Description:

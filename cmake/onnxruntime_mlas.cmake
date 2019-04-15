@@ -10,6 +10,7 @@ set(mlas_common_srcs
   ${ONNXRUNTIME_ROOT}/core/mlas/lib/activate.cpp
   ${ONNXRUNTIME_ROOT}/core/mlas/lib/logistic.cpp
   ${ONNXRUNTIME_ROOT}/core/mlas/lib/tanh.cpp
+  ${ONNXRUNTIME_ROOT}/core/mlas/lib/erf.cpp
 )
 
 if (MSVC)
@@ -139,6 +140,7 @@ else()
       ${ONNXRUNTIME_ROOT}/core/mlas/lib/x86_64/SgemmKernelFma3.S
       ${ONNXRUNTIME_ROOT}/core/mlas/lib/x86_64/LogisticKernelFma3.S
       ${ONNXRUNTIME_ROOT}/core/mlas/lib/x86_64/TanhKernelFma3.S
+      ${ONNXRUNTIME_ROOT}/core/mlas/lib/x86_64/ErfKernelFma3.S
     )
     set_source_files_properties(${mlas_platform_srcs_avx2} PROPERTIES COMPILE_FLAGS "-mavx2 -mfma")
 
