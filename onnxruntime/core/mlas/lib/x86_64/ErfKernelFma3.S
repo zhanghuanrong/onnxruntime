@@ -82,7 +82,7 @@ ErfNumberOfInputMask:
         .long 0xFFFFFFFF
         .endr
         .long 0,0,0,0,0,0,0,0
-
+        
 /*++
 
 Routine Description:

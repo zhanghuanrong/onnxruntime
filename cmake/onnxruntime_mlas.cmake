@@ -66,6 +66,7 @@ if (MSVC)
       ${ONNXRUNTIME_ROOT}/core/mlas/lib/amd64/cvtfp16a.asm
       ${ONNXRUNTIME_ROOT}/core/mlas/lib/amd64/LogisticKernelFma3.asm
       ${ONNXRUNTIME_ROOT}/core/mlas/lib/amd64/TanhKernelFma3.asm
+      ${ONNXRUNTIME_ROOT}/core/mlas/lib/amd64/ErfKernelFma3.asm
     )
 
   endif()
