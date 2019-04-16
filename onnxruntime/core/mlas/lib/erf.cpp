@@ -131,9 +131,9 @@ Return Value:
     while (N >= 4) {
         MLAS_FLOAT32X4 Value = MlasLoadFloat32x4(Input);
         MLAS_FLOAT32X4 SignMask = MlasAndFloat32x4(Value, MlasBroadcastFloat32x4(MlasErfConstants.ErfNegZero));
-        MLAS_FLOAT32X4 AbsValue = MlasAndFloat32x4(Value, MlasBroadcastFloat32x4(MlasErfConstants.ErfMaxInt));
+        MLAS_FLOAT32X4 AbsValue = MlasAndFloat32x4(Value, MlasBroadcastFloat32x4(*(const float*)&MlasErfConstants.ErfMaxInt));
         AbsValue = MlasMinimumFloat32x4(MlasBroadcastFloat32x4(MlasErfConstants.ErfUpperAbsRange), Value);
-        MLAS_FLOAT32X4 SquareValue = MlasAndFloat32x4(Value, MlasBroadcastFloat32x4(MlasErfConstants.ErfMaxInt));
+        MLAS_FLOAT32X4 SquareValue = MlasMultiplyFloat32x4(AbsValue, AbsValue);
         MLAS_FLOAT32X4 split_mask = MlasGreaterThanFloat32x4(AbsValue, MlasBroadcastFloat32x4(MlasErfConstants.ErfSplitBoundary));
 
         MLAS_FLOAT32X4 r_small = MlasBroadcastFloat32x4(MlasErfConstants.ErfSMALL_P0);
@@ -155,7 +155,7 @@ Return Value:
         r_big = MlasMultiplyAddFloat32x4(r_big, AbsValue, AbsValue);
 
         // 1.0 - exp(-r_big), no need to do min()
-        r_big = MlasXorFloat32x4(r_big, MlasBroadcastFloat32x4(MlasErfConstants.ErfMaxInt)); // -r_big
+        r_big = MlasXorFloat32x4(r_big, MlasBroadcastFloat32x4(MlasErfConstants.ErfNegZero)); // -r_big
         r_big = MlasMaximumFloat32x4(MlasBroadcastFloat32x4(MlasErfConstants.Exp_LowerRange), r_big);
         MLAS_FLOAT32X4 exp_c = MlasBroadcastFloat32x4(MlasErfConstants.Exp_C);
         MLAS_FLOAT32X4 r = MlasMultiplyAddFloat32x4(MlasBroadcastFloat32x4(MlasErfConstants.Exp_Log2Reciprocal), r_big, exp_c);
@@ -264,7 +264,8 @@ Return Value:
 --*/
 {
 #if defined(MLAS_TARGET_AMD64)
-    MlasPlatform.ErfKernelRoutine(Input, Output, N);
+    //MlasPlatform.ErfKernelRoutine(Input, Output, N);
+    MlasErfKernel(Input, Output, N);
 #else
     MlasErfKernel(Input, Output, N);
 #endif
