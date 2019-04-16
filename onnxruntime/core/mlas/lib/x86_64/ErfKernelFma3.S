@@ -377,8 +377,9 @@ C_UNDERSCORE(MlasErfKernelFma3):
 
 .LErfProcess1x8:
         mov          DWORD PTR ErfKernelFrame_CountN[rsp],edx
+        mov          rcx,QWORD PTR C_UNDERSCORE(MlasMaskMoveAvx)@GOTPCREL[rip]
         vbroadcastss ymm3,DWORD PTR ErfKernelFrame_CountN[rsp]
-        vpcmpgtd     ymm3,ymm3,YMMWORD PTR [MlasMaskMoveAvx]
+        vpcmpgtd     ymm3,ymm3,YMMWORD PTR [rcx]
         vmaskmovps   ymm0,ymm3,YMMWORD PTR [rdi]   # original input vx0
 
         vbroadcastss ymm15,ErfNegZero[rax]
