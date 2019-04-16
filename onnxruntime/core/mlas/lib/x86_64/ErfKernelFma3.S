@@ -64,24 +64,10 @@ Abstract:
 //
 // Stack frame layout for the erf kernel.
 //
-
-        .equ    TanhKernelFrame_CountN, -8
-        .equ    TanhKernelFrame_ReturnAddress, 0
-
-//
-// Stack frame for local buffer for the erf kernel.
-//
-        
         .equ    ErfBuffer0, 0
         .equ    ErfBuffer1, 128
-        .equ    ErfBufferEnd, 256
-
-        .align 32
-ErfNumberOfInputMask:
-        .rept 8
-        .long 0xFFFFFFFF
-        .endr
-        .long 0,0,0,0,0,0,0,0
+        .equ    ErfKernelFrame_CountN, 256
+        .equ    ErfKernelFrame_ReturnAddress, 256+8
         
 /*++
 
@@ -105,9 +91,7 @@ Return Value:
 
         .globl  C_UNDERSCORE(MlasErfKernelFma3)
 C_UNDERSCORE(MlasErfKernelFma3):
-        push    rbp
-        mov     rbp,rsp
-        sub     rsp,ErfBufferEnd
+        sub     rsp,ErfKernelFrame_ReturnAddress
         mov     rax,C_UNDERSCORE(MlasErfConstants)@GOTPCREL[rip]
 
         sub     rdx,8*4
@@ -392,16 +376,9 @@ C_UNDERSCORE(MlasErfKernelFma3):
         jz      .LErfBatchExp
 
 .LErfProcess1x8:
-        lea     r8,ErfNumberOfInputMask[rip]
-        cmp     rdx,8
-        jge     .ErfNoNumberMask
-        mov     rcx,8
-        sub     rcx,rdx
-        shl     rcx,2
-        add     r8,rcx
-
-.ErfNoNumberMask:
-        vmovups      ymm3,YMMWORD PTR [r8]         # number of input mask
+        mov          DWORD PTR ErfKernelFrame_CountN[rsp],edx
+        vbroadcastss ymm3,DWORD PTR ErfKernelFrame_CountN[rsp]
+        vpcmpgtd     ymm3,ymm3,YMMWORD PTR [MlasMaskMoveAvx]
         vmaskmovps   ymm0,ymm3,YMMWORD PTR [rdi]   # original input vx0
 
         vbroadcastss ymm15,ErfNegZero[rax]
@@ -530,11 +507,8 @@ C_UNDERSCORE(MlasErfKernelFma3):
         jg           .LErfProcess1x8
 
 .LErfBatchExp:
-        mov     rsp,rbp
-        pop     rbp
-
-.LErfExitKernel:
         vzeroupper
+        add          rsp,ErfKernelFrame_ReturnAddress
         ret
 
         .end
