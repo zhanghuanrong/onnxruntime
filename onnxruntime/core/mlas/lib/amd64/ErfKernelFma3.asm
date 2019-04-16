@@ -47,7 +47,7 @@ ErfConstants STRUCT
     ErfBIG_P6_Minus_One DWORD ?
     ErfNegZero DWORD ?
     ErfOne DWORD ?
-        
+
     Exp_UpperRange DWORD ?
     Exp_LowerRange DWORD ?
     Exp_Log2Reciprocal DWORD ?
@@ -137,17 +137,17 @@ ErfKernelFrame ENDS
 
 LComputeErf4x8Loop:
         vbroadcastss ymm15,ErfConstants.ErfNegZero[rax]
-        vmovups      ymm0,YMMWORD PTR [rcx]        ;# original input vx0
-        vmovups      ymm1,YMMWORD PTR 32[rcx]      ;# original input vx1
-        vmovups      ymm2,YMMWORD PTR 64[rcx]      ;# original input vx2
-        vmovups      ymm3,YMMWORD PTR 96[rcx]      ;# original input vx3
+        vmovups      ymm0,YMMWORD PTR [rcx]        ; original input vx0
+        vmovups      ymm1,YMMWORD PTR 32[rcx]      ; original input vx1
+        vmovups      ymm2,YMMWORD PTR 64[rcx]      ; original input vx2
+        vmovups      ymm3,YMMWORD PTR 96[rcx]      ; original input vx3
 
         vbroadcastss ymm14,ErfConstants.ErfMaxInt[rax]
 
-        vandps       ymm4,ymm0,ymm15               ;# vsign0
-        vandps       ymm5,ymm1,ymm15               ;# vsign1
-        vandps       ymm6,ymm2,ymm15               ;# vsign2
-        vandps       ymm7,ymm3,ymm15               ;# vsign3
+        vandps       ymm4,ymm0,ymm15               ; vsign0
+        vandps       ymm5,ymm1,ymm15               ; vsign1
+        vandps       ymm6,ymm2,ymm15               ; vsign2
+        vandps       ymm7,ymm3,ymm15               ; vsign3
 
         vbroadcastss ymm8,ErfConstants.ErfSMALL_P0[rax]
         vmovups      YMMWORD PTR ErfKernelFrame.ErfBuffer0[rsp],ymm4
@@ -159,16 +159,16 @@ LComputeErf4x8Loop:
         vmovaps      ymm10,ymm8
         vmovaps      ymm11,ymm8
 
-        vandps       ymm0,ymm0,ymm14               ;# abs(vx0)  va0
-        vandps       ymm1,ymm1,ymm14               ;# abs(vx1)  va1
-        vandps       ymm2,ymm2,ymm14               ;# abs(vx2)  va2
-        vandps       ymm3,ymm3,ymm14               ;# abs(vx3)  va3
+        vandps       ymm0,ymm0,ymm14               ; abs(vx0)  va0
+        vandps       ymm1,ymm1,ymm14               ; abs(vx1)  va1
+        vandps       ymm2,ymm2,ymm14               ; abs(vx2)  va2
+        vandps       ymm3,ymm3,ymm14               ; abs(vx3)  va3
 
         vbroadcastss ymm15,ErfConstants.ErfSMALL_P1[rax]
-        vmulps       ymm4,ymm0,ymm0                ;# vs0 (square)
-        vmulps       ymm5,ymm1,ymm1                ;# vs1
-        vmulps       ymm6,ymm2,ymm2                ;# vs2
-        vmulps       ymm7,ymm3,ymm3                ;# vs3
+        vmulps       ymm4,ymm0,ymm0                ; vs0 (square)
+        vmulps       ymm5,ymm1,ymm1                ; vs1
+        vmulps       ymm6,ymm2,ymm2                ; vs2
+        vmulps       ymm7,ymm3,ymm3                ; vs3
 
         vbroadcastss ymm14,ErfConstants.ErfSMALL_P2[rax]
         vfmadd213ps  ymm8,ymm4,ymm15
@@ -206,10 +206,10 @@ LComputeErf4x8Loop:
         vfmadd213ps  ymm10,ymm2,ymm2
         vfmadd213ps  ymm11,ymm3,ymm3
 
-        vcmpps       ymm4,ymm0,ymm12,30            ;# vmask0
-        vcmpps       ymm5,ymm1,ymm12,30            ;# vmask1
-        vcmpps       ymm6,ymm2,ymm12,30            ;# vmask2
-        vcmpps       ymm7,ymm3,ymm12,30            ;# vmask3
+        vcmpps       ymm4,ymm0,ymm12,30            ; vmask0
+        vcmpps       ymm5,ymm1,ymm12,30            ; vmask1
+        vcmpps       ymm6,ymm2,ymm12,30            ; vmask2
+        vcmpps       ymm7,ymm3,ymm12,30            ; vmask3
 
         vandnps      ymm8,ymm4,ymm8
         vandnps      ymm9,ymm5,ymm9
@@ -285,7 +285,7 @@ LBiggerNumbers:
         vmovaps      ymm6,ymm4
         vmovaps      ymm7,ymm4
 
-        ;# expf(ymm8 -- ymm11)
+        ; expf(ymm8 -- ymm11)
         vmaxps       ymm8,ymm8,ymm14
         vmaxps       ymm9,ymm9,ymm14
         vmaxps       ymm10,ymm10,ymm14
@@ -302,19 +302,19 @@ LBiggerNumbers:
         vmovaps      ymm2,ymm0
         vmovaps      ymm3,ymm0
 
-        vsubps       ymm4,ymm4,ymm13        ;# vr = round()
+        vsubps       ymm4,ymm4,ymm13        ; vr = round()
         vsubps       ymm5,ymm5,ymm13
         vsubps       ymm6,ymm6,ymm13
         vsubps       ymm7,ymm7,ymm13
 
-        vfmadd213ps  ymm0,ymm4,ymm8         ;#vf = vr * log2_hi + ve
+        vfmadd213ps  ymm0,ymm4,ymm8         ; vf = vr * log2_hi + ve
         vfmadd213ps  ymm1,ymm5,ymm9
         vfmadd213ps  ymm2,ymm6,ymm10
         vfmadd213ps  ymm3,ymm7,ymm11
 
-        vbroadcastss ymm8,ErfConstants.Exp_P0[rax]       ;# exp_p0
+        vbroadcastss ymm8,ErfConstants.Exp_P0[rax]       ; exp_p0
 
-        vfmadd231ps  ymm0,ymm4,ymm15        ;# vf += vr * log_2_lo
+        vfmadd231ps  ymm0,ymm4,ymm15        ; vf += vr * log_2_lo
         vfmadd231ps  ymm1,ymm5,ymm15
         vfmadd231ps  ymm2,ymm6,ymm15
         vfmadd231ps  ymm3,ymm7,ymm15
@@ -325,37 +325,37 @@ LBiggerNumbers:
         vbroadcastss ymm14,ErfConstants.Exp_P1[rax]
 
         vbroadcastss ymm13,ErfConstants.Exp_P2[rax]
-        vfmadd213ps  ymm8,ymm0,ymm14        ;# *+ exp_p1
+        vfmadd213ps  ymm8,ymm0,ymm14        ; *+ exp_p1
         vfmadd213ps  ymm9,ymm1,ymm14
         vfmadd213ps  ymm10,ymm2,ymm14
         vfmadd213ps  ymm11,ymm3,ymm14
 
         vbroadcastss ymm12,ErfConstants.Exp_P3[rax]
-        vfmadd213ps  ymm8,ymm0,ymm13        ;# *+ exp_p2
+        vfmadd213ps  ymm8,ymm0,ymm13        ; *+ exp_p2
         vfmadd213ps  ymm9,ymm1,ymm13
         vfmadd213ps  ymm10,ymm2,ymm13
         vfmadd213ps  ymm11,ymm3,ymm13
 
         vbroadcastss ymm15,ErfConstants.Exp_P4[rax]
-        vfmadd213ps  ymm8,ymm0,ymm12        ;# *+ exp_p3
+        vfmadd213ps  ymm8,ymm0,ymm12        ; *+ exp_p3
         vfmadd213ps  ymm9,ymm1,ymm12
         vfmadd213ps  ymm10,ymm2,ymm12
         vfmadd213ps  ymm11,ymm3,ymm12
 
         vbroadcastss ymm14,ErfConstants.Exp_P5[rax]
-        vfmadd213ps  ymm8,ymm0,ymm15        ;# *+ exp_p4
+        vfmadd213ps  ymm8,ymm0,ymm15        ; *+ exp_p4
         vfmadd213ps  ymm9,ymm1,ymm15
         vfmadd213ps  ymm10,ymm2,ymm15
         vfmadd213ps  ymm11,ymm3,ymm15
 
         vbroadcastss ymm13,ErfConstants.Exp_P6[rax]
-        vfmadd213ps  ymm8,ymm0,ymm14        ;# *+ exp_p5
+        vfmadd213ps  ymm8,ymm0,ymm14        ; *+ exp_p5
         vfmadd213ps  ymm9,ymm1,ymm14
         vfmadd213ps  ymm10,ymm2,ymm14
         vfmadd213ps  ymm11,ymm3,ymm14
 
         vbroadcastss ymm12,ErfConstants.Exp_X7F[rax]
-        vfmadd213ps  ymm8,ymm0,ymm13        ;# *+ exp_p6
+        vfmadd213ps  ymm8,ymm0,ymm13        ; *+ exp_p6
         vfmadd213ps  ymm9,ymm1,ymm13
         vfmadd213ps  ymm10,ymm2,ymm13
         vfmadd213ps  ymm11,ymm3,ymm13
@@ -367,7 +367,7 @@ LBiggerNumbers:
 
 
         vbroadcastss ymm15,ErfConstants.ErfOne[rax]
-        vpaddd       ymm4,ymm4,ymm12        ;# +127
+        vpaddd       ymm4,ymm4,ymm12        ; +127
         vpaddd       ymm5,ymm5,ymm12
         vpaddd       ymm6,ymm6,ymm12
         vpaddd       ymm7,ymm7,ymm12
@@ -377,7 +377,7 @@ LBiggerNumbers:
         vpslld       ymm6,ymm6,23
         vpslld       ymm7,ymm7,23
 
-        vmulps       ymm8,ymm8,ymm4         ;# 2^i **exp(vf)
+        vmulps       ymm8,ymm8,ymm4         ; 2^i **exp(vf)
         vmulps       ymm9,ymm9,ymm5
         vmulps       ymm10,ymm10,ymm6
         vmulps       ymm11,ymm11,ymm7
@@ -387,13 +387,13 @@ LBiggerNumbers:
         vsubps       ymm10,ymm15,ymm10
         vsubps       ymm11,ymm15,ymm11
 
-        ;# merge small numbers' result
+        ; merge small numbers' result
         vorps        ymm8,ymm8,YMMWORD PTR ErfKernelFrame.ErfBuffer1[rsp]
         vorps        ymm9,ymm9,YMMWORD PTR 32+ErfKernelFrame.ErfBuffer1[rsp]
         vorps        ymm10,ymm10,YMMWORD PTR 64+ErfKernelFrame.ErfBuffer1[rsp]
         vorps        ymm11,ymm11,YMMWORD PTR 96+ErfKernelFrame.ErfBuffer1[rsp]
 
-        ;#copy sign
+        ; copy sign
         vorps        ymm0,ymm8,YMMWORD PTR ErfKernelFrame.ErfBuffer0[rsp]
         vorps        ymm1,ymm9,YMMWORD PTR 32+ErfKernelFrame.ErfBuffer0[rsp]
         vorps        ymm2,ymm10,YMMWORD PTR 64+ErfKernelFrame.ErfBuffer0[rsp]
@@ -404,31 +404,31 @@ LBiggerNumbers:
         vmovups YMMWORD PTR 64[rdx],ymm2
         vmovups YMMWORD PTR 96[rdx],ymm3
 
-        add     rcx,32*4                    ;# advance output by 8 elements
-        add     rdx,32*4                    ;# advance output by 8 elements
+        add     rcx,32*4                    ; advance by 4*8 elements
+        add     rdx,32*4
         sub     r8,32
         jae     LComputeErf4x8Loop
 
 LErfProcessRemainingCount:
-        add     r8,32                      ;# correct for over-subtract above
+        add     r8,32                      ; correct for over-subtract above
         jz      LErfBatchExp
 
 LErfProcess1x8:
         mov          DWORD PTR ErfKernelFrame.CountN[rsp],r8d
         vbroadcastss ymm3,DWORD PTR ErfKernelFrame.CountN[rsp]
         vpcmpgtd     ymm3,ymm3,YMMWORD PTR [MlasMaskMoveAvx]
-        vmaskmovps   ymm0,ymm3,YMMWORD PTR [rcx]   ;# original input vx0
+        vmaskmovps   ymm0,ymm3,YMMWORD PTR [rcx]   ; original input vx0
 
         vbroadcastss ymm15,ErfConstants.ErfNegZero[rax]
         vbroadcastss ymm14,ErfConstants.ErfMaxInt[rax]
-        vandps       ymm4,ymm0,ymm15               ;# vsign0
+        vandps       ymm4,ymm0,ymm15               ; vsign0
         vbroadcastss ymm8,ErfConstants.ErfSMALL_P0[rax]
         vmovups      YMMWORD PTR ErfKernelFrame.ErfBuffer0[rsp],ymm4
 
         vbroadcastss ymm15,ErfConstants.ErfSMALL_P1[rax]
-        vandps       ymm0,ymm0,ymm14               ;# abs(vx0)  va0
+        vandps       ymm0,ymm0,ymm14               ; abs(vx0)  va0
 
-        vmulps       ymm4,ymm0,ymm0                ;# vs0
+        vmulps       ymm4,ymm0,ymm0                ; vs0
 
         vbroadcastss ymm14,ErfConstants.ErfSMALL_P2[rax]
         vfmadd213ps  ymm8,ymm4,ymm15
@@ -447,7 +447,7 @@ LErfProcess1x8:
         vbroadcastss ymm12,ErfConstants.ErfSplitBoundary[rax]
         vfmadd213ps  ymm8,ymm0,ymm0
 
-        vcmpps       ymm4,ymm0,ymm12,30            ;# vmask0
+        vcmpps       ymm4,ymm0,ymm12,30            ; vmask0
 
         vandnps      ymm8,ymm4,ymm8
 
@@ -484,7 +484,7 @@ LBiggerNumbersRemaining:
 
         vbroadcastss ymm13,ErfConstants.Exp_C[rax]
 
-        ;# expf(ymm8 -- ymm11)
+        ; expf(ymm8 -- ymm11)
         vmaxps       ymm8,ymm8,ymm14
 
         vbroadcastss ymm0,ErfConstants.Exp_log2_hi[rax]
@@ -492,49 +492,49 @@ LBiggerNumbersRemaining:
 
         vbroadcastss ymm15,ErfConstants.Exp_log2_lo[rax]
 
-        vsubps       ymm4,ymm4,ymm13        ;# vr = round()
+        vsubps       ymm4,ymm4,ymm13        ; vr = round()
 
-        vfmadd213ps  ymm0,ymm4,ymm8         ;#vf = vr * log2_hi + ve
+        vfmadd213ps  ymm0,ymm4,ymm8         ; vf = vr * log2_hi + ve
 
-        vbroadcastss ymm8,ErfConstants.Exp_P0[rax]       ;# exp_p0
+        vbroadcastss ymm8,ErfConstants.Exp_P0[rax]       ; exp_p0
 
-        vfmadd231ps  ymm0,ymm4,ymm15        ;# vf += vr * log_2_lo
+        vfmadd231ps  ymm0,ymm4,ymm15        ; vf += vr * log_2_lo
 
         vbroadcastss ymm14,ErfConstants.Exp_P1[rax]
 
         vbroadcastss ymm13,ErfConstants.Exp_P2[rax]
-        vfmadd213ps  ymm8,ymm0,ymm14        ;# *+ exp_p1
+        vfmadd213ps  ymm8,ymm0,ymm14        ; *+ exp_p1
 
         vbroadcastss ymm12,ErfConstants.Exp_P3[rax]
-        vfmadd213ps  ymm8,ymm0,ymm13        ;# *+ exp_p2
+        vfmadd213ps  ymm8,ymm0,ymm13        ; *+ exp_p2
 
         vbroadcastss ymm15,ErfConstants.Exp_P4[rax]
-        vfmadd213ps  ymm8,ymm0,ymm12        ;# *+ exp_p3
+        vfmadd213ps  ymm8,ymm0,ymm12        ; *+ exp_p3
 
         vbroadcastss ymm14,ErfConstants.Exp_P5[rax]
-        vfmadd213ps  ymm8,ymm0,ymm15        ;# *+ exp_p4
+        vfmadd213ps  ymm8,ymm0,ymm15        ; *+ exp_p4
 
         vbroadcastss ymm13,ErfConstants.Exp_P6[rax]
-        vfmadd213ps  ymm8,ymm0,ymm14        ;# *+ exp_p5
+        vfmadd213ps  ymm8,ymm0,ymm14        ; *+ exp_p5
 
         vbroadcastss ymm12,ErfConstants.Exp_X7F[rax]
-        vfmadd213ps  ymm8,ymm0,ymm13        ;# *+ exp_p6
+        vfmadd213ps  ymm8,ymm0,ymm13        ; *+ exp_p6
 
         vcvttps2dq   ymm4,ymm4
 
         vbroadcastss ymm15,ErfConstants.ErfOne[rax]
-        vpaddd       ymm4,ymm4,ymm12        ;# +127
+        vpaddd       ymm4,ymm4,ymm12        ; +127
 
         vpslld       ymm4,ymm4,23
 
-        vmulps       ymm8,ymm8,ymm4         ;# 2^i **exp(vf)
+        vmulps       ymm8,ymm8,ymm4         ; 2^i **exp(vf)
 
         vsubps       ymm8,ymm15,ymm8
 
-        ;# merge small numbers' result
+        ; merge small numbers' result
         vorps        ymm8,ymm8,YMMWORD PTR ErfKernelFrame.ErfBuffer1[rsp]
 
-        ;#copy sign
+        ; copy sign
         vorps        ymm0,ymm8,YMMWORD PTR ErfKernelFrame.ErfBuffer0[rsp]
 
         vmaskmovps   YMMWORD PTR [rdx],ymm3,ymm0

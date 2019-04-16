@@ -1031,7 +1031,7 @@ Status Erf<float>::Compute(OpKernelContext* context) const {
   auto& X = *X_ptr;
   auto& Y = *context->Output(0, X.Shape());
 
-  MlasComputeErf(X.template Data<float>(),  Y.template MutableData<float>(),  X.Shape().Size());
+  MlasComputeErf(X.template Data<float>(), Y.template MutableData<float>(), X.Shape().Size());
 
   return Status::OK();
 }
