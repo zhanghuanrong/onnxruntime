@@ -144,6 +144,7 @@ Return Value:
                 }
 
                 this->LogisticKernelRoutine = MlasLogisticKernelFma3;
+                this->TanhKernelRoutine = MlasTanhKernelFma3;
                 this->ErfKernelRoutine = MlasErfKernelFma3;
 
             } else {
