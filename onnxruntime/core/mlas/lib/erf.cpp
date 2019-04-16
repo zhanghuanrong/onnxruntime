@@ -131,7 +131,7 @@ Return Value:
     while (N >= 4) {
         MLAS_FLOAT32X4 Value = MlasLoadFloat32x4(Input);
         MLAS_FLOAT32X4 SignMask = MlasAndFloat32x4(Value, MlasBroadcastFloat32x4(MlasErfConstants.ErfNegZero));
-        MLAS_FLOAT32X4 AbsValue = MlasAndFloat32x4(Value, MlasBroadcastFloat32x4(*(const float*)&MlasErfConstants.ErfMaxInt));
+        MLAS_FLOAT32X4 AbsValue = MlasAndFloat32x4(Value, MlasBroadcastFloat32x4(reinterpret_cast<const float*>(&MlasErfConstants.ErfMaxInt)));
         AbsValue = MlasMinimumFloat32x4(MlasBroadcastFloat32x4(MlasErfConstants.ErfUpperAbsRange), Value);
         MLAS_FLOAT32X4 SquareValue = MlasMultiplyFloat32x4(AbsValue, AbsValue);
         MLAS_FLOAT32X4 split_mask = MlasGreaterThanFloat32x4(AbsValue, MlasBroadcastFloat32x4(MlasErfConstants.ErfSplitBoundary));
